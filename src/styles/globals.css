@@ -72,28 +72,48 @@
 }
 
 :root {
-  /* Cloudscape / AWS UI Design Token Overrides */
+  /* Jeju Tangerine Palette - Dynamic Mapping */
+  --color-primary: var(--color-jeju-light-primary);
+  --color-primary-variant: var(--color-jeju-light-primary-variant);
+  --color-secondary: var(--color-jeju-light-secondary);
+  --color-text-primary: var(--color-jeju-light-text-primary);
+  --color-text-secondary: var(--color-jeju-light-text-secondary);
+}
 
-  /* Primary Button - Using Ormi Pink */
-  --color-background-button-primary-default: var(--color-ormi-pink-500);
-  --color-background-button-primary-hover: var(--color-ormi-pink-400);
-  --color-background-button-primary-active: var(--color-ormi-pink-600);
-  --color-border-button-primary-default: var(--color-ormi-pink-500);
-  --color-border-button-primary-hover: var(--color-ormi-pink-400);
-  --color-border-button-primary-active: var(--color-ormi-pink-600);
+.dark {
+  --color-primary: var(--color-jeju-dark-primary);
+  --color-primary-variant: var(--color-jeju-dark-primary-variant);
+  --color-secondary: var(--color-jeju-dark-secondary);
+  --color-text-primary: var(--color-jeju-dark-text-primary);
+  --color-text-secondary: var(--color-jeju-dark-text-secondary);
+}
 
-  /* Focus & Accents - Using Ormi Ember */
-  --color-border-item-focused: var(--color-ormi-ember-500);
-  --color-text-accent: var(--color-ormi-ember-600);
+:root {
+  /* Cloudscape / AWS UI Design Token Overrides - Using Dynamic Variables */
+
+  /* Primary Button - Jeju Orange */
+  --color-background-button-primary-default: var(--color-primary);
+  --color-background-button-primary-hover: var(--color-primary-variant);
+  --color-background-button-primary-active: var(--color-primary-variant);
+  --color-border-button-primary-default: var(--color-primary);
+  --color-border-button-primary-hover: var(--color-primary-variant);
+  --color-border-button-primary-active: var(--color-primary-variant);
+  --color-text-button-primary-default: #ffffff;
+  --color-text-button-primary-hover: #ffffff;
+  --color-text-button-primary-active: #ffffff;
+
+  /* Focus & Accents */
+  --color-border-item-focused: var(--color-primary);
+  --color-text-accent: var(--color-secondary);
 
   /* Inputs & Controls */
-  --color-border-input-focused: var(--color-ormi-ember-500);
-  --color-background-control-checked: var(--color-ormi-ember-500);
-  --color-border-control-checked: var(--color-ormi-ember-500);
+  --color-border-input-focused: var(--color-primary);
+  --color-background-control-checked: var(--color-primary);
+  --color-border-control-checked: var(--color-primary);
 
   /* Links */
-  --color-text-link-default: var(--color-ormi-pink-600);
-  --color-text-link-hover: var(--color-ormi-pink-500);
+  --color-text-link-default: var(--color-primary);
+  --color-text-link-hover: var(--color-primary-variant);
 }
 
 @layer base {
@@ -109,8 +129,8 @@
 
   body {
     @apply min-h-screen m-0 p-0 transition-colors duration-300;
-    @apply bg-ormi-green-100 text-slate-900;
-    @apply dark:bg-slate-900 dark:text-slate-100;
+    @apply bg-jeju-light-background text-jeju-light-text-primary;
+    @apply dark:bg-jeju-dark-background dark:text-jeju-dark-text-primary;
 
     /* 최소 너비 이하에서 가로 스크롤 허용 */
     min-width: 375px;
@@ -128,7 +148,7 @@
   /* 모바일 컨테이너 - 최대 태블릿 크기 */
   .mobile-container {
     @apply w-full max-w-2xl mx-auto shadow-2xl min-h-screen transition-colors duration-300;
-    @apply bg-white dark:bg-slate-800;
+    @apply bg-jeju-light-surface dark:bg-jeju-dark-surface;
     min-width: 375px;
   }
 
@@ -138,8 +158,8 @@
     /* ormi-pink와 ormi-green을 섞은 그라데이션 */
     background: linear-gradient(
       135deg,
-      var(--color-ormi-pink-500),
-      var(--color-ormi-green-500)
+      var(--color-jeju-light-primary),
+      var(--color-jeju-light-secondary)
     );
   }
 

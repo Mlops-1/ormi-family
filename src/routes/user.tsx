@@ -199,7 +199,7 @@ function UserProfilePage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-ormi-ember-50 to-ormi-ember-100 p-4 animate-fade-in">
+    <div className="min-h-screen flex items-center justify-center bg-jeju-light-background dark:bg-jeju-dark-background p-4 animate-fade-in">
       {(error || successMsg) && (
         <Notification
           items={[
@@ -228,11 +228,11 @@ function UserProfilePage() {
       )}
 
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8 relative">
+        <div className="bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-2xl shadow-xl p-8 relative border border-jeju-light-divider dark:border-jeju-dark-divider">
           {mode === 'edit' && (
             <button
               onClick={() => navigate({ to: '/' })}
-              className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 transition-colors p-2 -ml-2 rounded-full hover:bg-gray-100"
+              className="absolute top-6 left-6 text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary hover:text-jeju-light-text-primary dark:hover:text-jeju-dark-text-primary transition-colors p-2 -ml-2 rounded-full hover:bg-jeju-light-background dark:hover:bg-jeju-dark-background"
             >
               <ArrowLeft size={24} />
             </button>
@@ -243,10 +243,10 @@ function UserProfilePage() {
             <div className="flex justify-center mb-4">
               <Logo />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-2">
               {mode === 'onboarding' ? '프로필 설정' : '내 정보 수정'}
             </h1>
-            <p className="text-gray-600">
+            <p className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
               {mode === 'onboarding'
                 ? '서비스 이용을 위해 기본 정보를 입력해주세요.'
                 : '변경할 정보를 입력해주세요.'}
@@ -275,7 +275,7 @@ function UserProfilePage() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-1 right-1 bg-ormi-green-500 hover:bg-ormi-green-600 text-white p-2.5 rounded-full shadow-md transition-colors"
+                  className="absolute bottom-1 right-1 bg-jeju-light-primary hover:bg-jeju-light-primary-variant text-white p-2.5 rounded-full shadow-md transition-colors"
                 >
                   <Camera size={18} />
                 </button>
@@ -302,14 +302,14 @@ function UserProfilePage() {
             {/* Nickname Input */}
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary">
                   닉네임
                 </label>
                 {mode === 'edit' && !isEditingNickname && (
                   <button
                     type="button"
                     onClick={() => setIsEditingNickname(true)}
-                    className="text-xs text-ormi-green-600 font-medium hover:underline"
+                    className="text-xs text-jeju-light-secondary dark:text-jeju-dark-secondary font-medium hover:underline"
                   >
                     변경하기
                   </button>
@@ -330,10 +330,10 @@ function UserProfilePage() {
 
             {/* Spot Categories */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
                 선호하는 장소 (복수 선택 가능) *
               </label>
-              <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <div className="space-y-2 bg-jeju-light-background dark:bg-jeju-dark-background p-4 rounded-xl border border-jeju-light-divider dark:border-jeju-dark-divider">
                 <Checkbox
                   label="☕ 카페"
                   checked={selectedCategories.includes(SpotCategory.CAFE)}
@@ -368,10 +368,10 @@ function UserProfilePage() {
 
             {/* Accessibility Conditions */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+              <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
                 이동 편의 고려사항 (선택)
               </label>
-              <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <div className="space-y-2 bg-jeju-light-background dark:bg-jeju-dark-background p-4 rounded-xl border border-jeju-light-divider dark:border-jeju-dark-divider">
                 <Checkbox
                   label="♿ 휠체어/유모차 접근성 필요"
                   checked={selectedConditions.includes(
@@ -415,7 +415,7 @@ function UserProfilePage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-4 px-4 bg-linear-to-r from-ormi-green-500 to-ormi-green-600 hover:from-ormi-green-600 hover:to-ormi-green-700 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-400 text-white font-bold rounded-xl shadow-lg shadow-ormi-green-100 transition-all active:scale-98"
+              className="w-full py-4 px-4 bg-jeju-light-primary hover:bg-jeju-light-primary-variant dark:bg-jeju-dark-primary dark:hover:bg-jeju-dark-primary-variant disabled:bg-jeju-light-text-disabled disabled:dark:bg-jeju-dark-text-disabled text-white font-bold rounded-xl shadow-lg shadow-jeju-light-primary/30 transition-all active:scale-98"
             >
               {submitting
                 ? '저장 중...'

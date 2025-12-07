@@ -44,11 +44,13 @@ function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-6 py-12 bg-linear-to-br from-ormi-blue-100 via-ormi-ember-100 to-ormi-pink-100">
+    <div className="min-h-screen flex flex-col px-6 py-12 bg-jeju-light-background dark:bg-jeju-dark-background">
       {/* Header with Logo */}
       <div className="text-center mb-8">
         <Logo size="medium" className="mb-2" />
-        <p className="text-base text-gray-600">회원가입</p>
+        <p className="text-base text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
+          회원가입
+        </p>
       </div>
 
       {/* Signup Form */}
@@ -67,7 +69,7 @@ function SignupPage() {
 
           {/* Checkboxes Section */}
           <div className="space-y-4 pt-4">
-            <p className="text-sm font-semibold text-gray-700 mb-3">
+            <p className="text-sm font-semibold text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
               약관 동의
             </p>
 

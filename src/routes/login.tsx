@@ -46,7 +46,7 @@ function LoginPage() {
   const displayError = localError || error;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-ormi-ember-50 to-ormi-ember-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-jeju-light-background dark:bg-jeju-dark-background p-4">
       {displayError && (
         <Notification
           items={[
@@ -61,16 +61,16 @@ function LoginPage() {
       )}
 
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-2xl shadow-xl p-8 border border-jeju-light-divider dark:border-jeju-dark-divider">
           {/* Logo and Title */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <Logo />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            <h1 className="text-2xl font-bold text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-2">
               Welcome to ORMI Family
             </h1>
-            <p className="text-gray-600">
+            <p className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
               Sign in to discover family-friendly spots
             </p>
           </div>
@@ -87,7 +87,7 @@ function LoginPage() {
           </div>
 
           {/* Terms and Privacy */}
-          <p className="text-xs text-gray-500 text-center mt-6">
+          <p className="text-xs text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled text-center mt-6">
             By continuing, you agree to our Terms of Service and Privacy Policy
           </p>
         </div>

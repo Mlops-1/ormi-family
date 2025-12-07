@@ -195,7 +195,8 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                 <div className="w-full mt-auto">
                   <Button
                     variant="primary"
-                    className="w-full bg-jeju-light-primary hover:bg-jeju-light-primary-variant text-white py-4 text-lg rounded-2xl shadow-jeju-light-primary/30 shadow-lg border-transparent"
+                    fullWidth={true}
+                    className="mt-4 shadow-lg shadow-jeju-light-primary/30"
                     onClick={handleNext}
                   >
                     다음 장소 보기
