@@ -1,43 +1,102 @@
-import { createFileRoute } from '@tanstack/react-router';
+import CategoryFilter from '@/components/CategoryFilter';
+import GeoLocation from '@/components/GeoLocation';
+import AppNotification from '@/components/Notification';
+import OnboardingOverlay from '@/components/OnboardingOverlay';
+import SwipeableCardList from '@/components/SwipeableCardList';
+import WeatherWidget from '@/components/WeatherWidget';
+import { MOCK_SPOTS } from '@/data/spots';
+import useGeoLocation from '@/hooks/useGeoLocation';
+import { SpotCategory } from '@/types/spot';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useState } from 'react';
 
 export const Route = createFileRoute('/')({
-  component: LandingPage1,
+  component: IndexPage,
 });
 
-function LandingPage1() {
+function IndexPage() {
+  const navigate = useNavigate();
+  const location = useGeoLocation();
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [notifications, setNotifications] = useState<
+    Array<{ id: string; content: string }>
+  >([]);
+
+  const [selectedCategories, setSelectedCategories] = useState<SpotCategory[]>([
+    SpotCategory.LANDMARK,
+    SpotCategory.CAFE,
+    SpotCategory.DINNER,
+  ]);
+
+  const filteredSpots = MOCK_SPOTS.filter((spot) =>
+    selectedCategories.includes(spot.category)
+  );
+
+  const handleGeoClick = () => {
+    const id = Date.now().toString();
+    const lat = location.coordinates.lat.toFixed(4);
+    const lon = location.coordinates.lon.toFixed(4);
+
+    // Provide feedback on source
+    const sourceInfo = location.isFallback ? ' (기본 위치)' : ' (GPS)';
+    const errorInfo = location.error ? ` - ${location.error.message}` : '';
+
+    setNotifications((prev) => [
+      ...prev,
+      { id, content: `현재 위경도${sourceInfo}: ${lat}, ${lon}${errorInfo}` },
+    ]);
+
+    setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== id));
+    }, 5000);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto text-center">
-      <h1 className="text-6xl font-bold text-white mb-4 bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">
-        Welcome to Landing Page 1
-      </h1>
-      <p className="text-xl text-purple-100 mb-12">
-        This is the first landing page built with TanStack Router & Tailwind CSS
-      </p>
+    <div className="min-h-screen flex flex-col items-center justify-start pt-12 px-4 pb-8 md:px-6 md:py-12 bg-linear-to-br from-ormi-green-100 via-ormi-ember-100 to-ormi-pink-100 relative">
+      <div className="text-center w-full max-w-lg md:max-w-2xl transition-all duration-300">
+        {/* Global Notification */}
+        {notifications.length > 0 && (
+          <AppNotification
+            items={notifications.map((n) => ({
+              type: 'info',
+              content: n.content,
+              id: n.id,
+              onDismiss: () =>
+                setNotifications((prev) => prev.filter((x) => x.id !== n.id)),
+            }))}
+          />
+        )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
-        <div className="p-8 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 transition-all duration-300 hover:transform hover:-translate-y-2 hover:shadow-2xl hover:bg-white/20">
-          <div className="text-5xl mb-4">🚀</div>
-          <h3 className="text-2xl font-bold text-white mb-3">Fast</h3>
-          <p className="text-purple-100">
-            Lightning-fast routing with TanStack Router
-          </p>
-        </div>
+        {/* Geo & Weather Section */}
+        {location.loaded && (
+          <div className="mb-8 animate-fade-in">
+            <GeoLocation
+              coordinates={location.coordinates}
+              onLocationClick={handleGeoClick}
+              onHelpClick={() => setShowOnboarding(true)}
+              onUserClick={() => navigate({ to: '/user' })}
+            />
+            <WeatherWidget coordinates={location.coordinates} />
 
-        <div className="p-8 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 transition-all duration-300 hover:transform hover:-translate-y-2 hover:shadow-2xl hover:bg-white/20">
-          <div className="text-5xl mb-4">🎯</div>
-          <h3 className="text-2xl font-bold text-white mb-3">Type-Safe</h3>
-          <p className="text-purple-100">
-            100% TypeScript support with full type inference
-          </p>
-        </div>
+            {/* Category Filter */}
+            <div className="mt-6 mb-2">
+              <CategoryFilter
+                selected={selectedCategories}
+                onChange={setSelectedCategories}
+              />
+            </div>
+          </div>
+        )}
 
-        <div className="p-8 bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 transition-all duration-300 hover:transform hover:-translate-y-2 hover:shadow-2xl hover:bg-white/20">
-          <div className="text-5xl mb-4">⚡</div>
-          <h3 className="text-2xl font-bold text-white mb-3">Modern</h3>
-          <p className="text-purple-100">
-            Built with the latest React and Vite technologies
-          </p>
-        </div>
+        <OnboardingOverlay
+          isVisible={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+        />
+
+        <SwipeableCardList
+          items={filteredSpots}
+          userLocation={location.loaded ? location.coordinates : undefined}
+        />
       </div>
     </div>
   );

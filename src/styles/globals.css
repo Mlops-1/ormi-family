@@ -1,5 +1,57 @@
 @import 'tailwindcss';
 
+@theme {
+  /* Ormi Family Color Palette */
+  /* Pink - From the tulips */
+  --color-ormi-pink-100: #fce7f3;
+  --color-ormi-pink-200: #fbcfe8;
+  --color-ormi-pink-300: #f9a8d4;
+  --color-ormi-pink-400: #ec4899;
+  --color-ormi-pink-500: #db2777;
+  --color-ormi-pink-600: #be185d;
+
+  /* Ember - From the daffodils/orange accents */
+  --color-ormi-ember-100: #fffbeb;
+  --color-ormi-ember-200: #fef3c7;
+  --color-ormi-ember-300: #fde68a;
+  --color-ormi-ember-400: #f59e0b;
+  --color-ormi-ember-500: #d97706;
+  --color-ormi-ember-600: #b45309;
+
+  /* Green - From the stems/leaves */
+  --color-ormi-green-100: #ecfdf5;
+  --color-ormi-green-200: #d1fae5;
+  --color-ormi-green-300: #6ee7b7;
+  --color-ormi-green-400: #34d399;
+  --color-ormi-green-500: #10b981;
+  --color-ormi-green-600: #059669;
+}
+
+:root {
+  /* Cloudscape / AWS UI Design Token Overrides */
+
+  /* Primary Button - Using Ormi Pink */
+  --color-background-button-primary-default: var(--color-ormi-pink-500);
+  --color-background-button-primary-hover: var(--color-ormi-pink-400);
+  --color-background-button-primary-active: var(--color-ormi-pink-600);
+  --color-border-button-primary-default: var(--color-ormi-pink-500);
+  --color-border-button-primary-hover: var(--color-ormi-pink-400);
+  --color-border-button-primary-active: var(--color-ormi-pink-600);
+
+  /* Focus & Accents - Using Ormi Ember */
+  --color-border-item-focused: var(--color-ormi-ember-500);
+  --color-text-accent: var(--color-ormi-ember-600);
+
+  /* Inputs & Controls */
+  --color-border-input-focused: var(--color-ormi-ember-500);
+  --color-background-control-checked: var(--color-ormi-ember-500);
+  --color-border-control-checked: var(--color-ormi-ember-500);
+
+  /* Links */
+  --color-text-link-default: var(--color-ormi-pink-600);
+  --color-text-link-hover: var(--color-ormi-pink-500);
+}
+
 @layer base {
   * {
     @apply box-border;
@@ -7,31 +59,66 @@
 
   html {
     @apply h-full;
+    /* iPhone mini 최소 너비 설정 (375px) */
+    min-width: 375px;
   }
 
   body {
-    @apply bg-gray-100 min-h-screen m-0 p-0;
+    @apply min-h-screen m-0 p-0;
+    background-color: var(
+      --color-ormi-green-100
+    ); /* Cloudscape 배경 대신 우리가 만든 은은한 그린 사용 */
+    /* 최소 너비 이하에서 가로 스크롤 허용 */
+    min-width: 375px;
+    overflow-x: auto;
   }
 
   /* 데스크톱에서 모바일 뷰 + 안내 메시지 레이아웃 */
   #root {
     @apply min-h-screen;
+    min-width: 375px;
   }
 }
 
 @layer components {
   /* 모바일 컨테이너 - 최대 태블릿 크기 */
   .mobile-container {
-    @apply w-full max-w-2xl mx-auto bg-white shadow-2xl min-h-screen;
+    @apply w-full max-w-2xl mx-auto shadow-2xl min-h-screen;
+    background-color: white;
+    min-width: 375px;
   }
 
   /* 데스크톱 안내 메시지 */
   .desktop-notice {
-    @apply hidden lg:flex flex-col items-center justify-center flex-1 bg-linear-to-br from-purple-600 to-purple-800 text-white p-12;
+    @apply hidden lg:flex flex-col items-center justify-center flex-1 text-white p-12;
+    /* ormi-pink와 ormi-green을 섞은 그라데이션 */
+    background: linear-gradient(
+      135deg,
+      var(--color-ormi-pink-500),
+      var(--color-ormi-green-500)
+    );
   }
 
   /* 데스크톱 레이아웃 래퍼 */
   .desktop-wrapper {
     @apply lg:flex lg:min-h-screen;
+  }
+}
+
+@layer utilities {
+  /* 그라데이션 애니메이션 */
+  @keyframes gradient {
+    0%,
+    100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient 3s ease infinite;
   }
 }

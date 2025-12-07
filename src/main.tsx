@@ -1,3 +1,4 @@
+import '@cloudscape-design/global-styles/index.css';
 import { RouterProvider } from '@tanstack/react-router';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
