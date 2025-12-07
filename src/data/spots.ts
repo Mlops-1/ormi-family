@@ -1,12 +1,32 @@
 import { SpotCategory, type SpotCard } from '@/types/spot';
 
+// Reliable Unsplash Source URLs for Demo
+const IMAGES = {
+  SNOOPY:
+    'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?q=80&w=800&auto=format&fit=crop', // Forest/Park
+  ARTE: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=800&auto=format&fit=crop', // Abstract/Light
+  DONUT:
+    'https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=800&auto=format&fit=crop', // Donut
+  PORK: 'https://images.unsplash.com/photo-1628268909376-e8c44e6cb954?q=80&w=800&auto=format&fit=crop', // Grilled Meat
+  PEAK: 'https://images.unsplash.com/photo-1542662565-7e4b66b5ad2c?q=80&w=800&auto=format&fit=crop', // Mountain/Nature
+  PUDDING:
+    'https://images.unsplash.com/photo-1517438476312-10d79c077509?q=80&w=800&auto=format&fit=crop', // Pudding/Dessert
+  NOODLE:
+    'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=800&auto=format&fit=crop', // Noodle
+  CAMELLIA:
+    'https://images.unsplash.com/photo-1516205651411-a23336a5a1d5?q=80&w=800&auto=format&fit=crop', // Flowers
+  GIMBAP:
+    'https://images.unsplash.com/photo-1567123998399-52e896489379?q=80&w=800&auto=format&fit=crop', // Sushi/Roll
+  CLIFF:
+    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=800&auto=format&fit=crop', // Beach/Bar
+};
+
 export const MOCK_SPOTS: SpotCard[] = [
   {
     contentid: 1,
     title: '스누피 가든',
     category: SpotCategory.LANDMARK,
-    img_url:
-      'https://api.cdn.visitjeju.net/photomng/imgpath/202007/21/5fa74345-5381-424a-939e-44d47345688d.jpg',
+    img_url: IMAGES.SNOOPY,
     description: '제주의 자연과 스누피가 어우러진 힐링 테마파크입니다.',
     mapy: 33.43,
     mapx: 126.78,
@@ -31,8 +51,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 2,
     title: '아르떼뮤지엄 제주',
     category: SpotCategory.LANDMARK,
-    img_url:
-      'https://api.cdn.visitjeju.net/photomng/imgpath/202111/17/c0587635-f027-4b53-91ce-6a98f1f3f443.jpg',
+    img_url: IMAGES.ARTE,
     description: '빛과 소리가 만들어내는 몰입형 미디어아트 전시관.',
     mapy: 33.39,
     mapx: 126.3,
@@ -56,8 +75,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 3,
     title: '랜디스 도넛',
     category: SpotCategory.CAFE,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSx-gVzJz-yY2QxT1X3z3z3z3z3z3z3z3z3z3', // Dummy
+    img_url: IMAGES.DONUT,
     description: '줄 서서 먹는 제주 애월의 핫한 도넛 카페.',
     mapy: 33.46,
     mapx: 126.31,
@@ -81,8 +99,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 4,
     title: '숙성도',
     category: SpotCategory.DINNER,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR6z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0', // Dummy
+    img_url: IMAGES.PORK,
     description: '제주 흑돼지의 정점, 숙성 흑돼지 전문점.',
     mapy: 33.48,
     mapx: 126.49,
@@ -106,8 +123,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 5,
     title: '성산일출봉',
     category: SpotCategory.LANDMARK,
-    img_url:
-      'https://api.cdn.visitjeju.net/photomng/imgpath/201804/30/c1f6d7d8-2101-4927-b236-407865c36473.jpg',
+    img_url: IMAGES.PEAK,
     description: '제주의 아침을 여는 세계자연유산, 성산일출봉.',
     mapy: 33.45,
     mapx: 126.94,
@@ -131,8 +147,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 6,
     title: '우무 (Umu)',
     category: SpotCategory.CAFE,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0', // Dummy
+    img_url: IMAGES.PUDDING,
     description: '제주 우뭇가사리로 만든 귀여운 푸딩 카페.',
     mapy: 33.39,
     mapx: 126.25,
@@ -156,8 +171,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 7,
     title: '자매국수',
     category: SpotCategory.DINNER,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRz0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z', // Dummy
+    img_url: IMAGES.NOODLE,
     description: '진한 국물의 고기국수가 맛있는 웨이팅 맛집.',
     mapy: 33.5,
     mapx: 126.52,
@@ -181,8 +195,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 8,
     title: '카멜리아 힐',
     category: SpotCategory.LANDMARK,
-    img_url:
-      'https://api.cdn.visitjeju.net/photomng/imgpath/201911/29/7a0d4b8e-670e-4360-934c-6f8d03541603.jpg',
+    img_url: IMAGES.CAMELLIA,
     description: '동양에서 가장 큰 동백 수목원.',
     mapy: 33.29,
     mapx: 126.37,
@@ -206,8 +219,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 9,
     title: '오는정김밥',
     category: SpotCategory.DINNER,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTz0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z', // Dummy
+    img_url: IMAGES.GIMBAP,
     description: '예약 없이는 먹기 힘든 전설의 김밥집.',
     mapy: 33.24,
     mapx: 126.56,
@@ -231,8 +243,7 @@ export const MOCK_SPOTS: SpotCard[] = [
     contentid: 10,
     title: '더 클리프',
     category: SpotCategory.CAFE,
-    img_url:
-      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQz0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z0z', // Dummy
+    img_url: IMAGES.CLIFF,
     description: '중문 색달해변이 한눈에 보이는 힙한 라운지 바.',
     mapy: 33.25,
     mapx: 126.41,

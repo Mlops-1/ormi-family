@@ -1,3 +1,4 @@
+import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import Button from '@/components/Button';
 import AppNotification from '@/components/Notification';
 import type { Coordinates } from '@/types/geo';
@@ -19,7 +20,9 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
 
   // Reset index when items change to prevent out of bounds
   useEffect(() => {
-    setCurrentIndex(0);
+    if (currentIndex !== 0) {
+      setCurrentIndex(0);
+    }
   }, [items]);
 
   const handleNext = () => {
@@ -97,7 +100,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
 
   if (items.length === 0) {
     return (
-      <div className="text-gray-400 p-8 text-center">
+      <div className="text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
         표시할 장소가 없습니다.
       </div>
     );
@@ -116,20 +119,14 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     : null;
 
   return (
-    <div className="w-full flex flex-col items-center">
-      <p className="text-gray-400 text-sm mb-4 animate-pulse">
+    <div className="w-full flex flex-col items-center h-full justify-center">
+      <p className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary text-sm mb-2 animate-pulse">
         오른쪽으로 당겨보세요
       </p>
 
-      <div className="relative w-full h-[400px] flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-[550px] flex items-center justify-center overflow-visible">
         {notifications.length > 0 && (
-          <div
-            style={
-              {
-                '--color-text-status-info': 'var(--color-ormi-pink-500)',
-              } as any
-            }
-          >
+          <div className="absolute top-4 z-50 w-full px-4">
             <AppNotification
               items={notifications.map((n) => ({
                 id: n.id,
@@ -156,45 +153,52 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={1}
             onDragEnd={handleDragEnd}
-            className="absolute w-full px-4 cursor-grab active:cursor-grabbing max-w-lg md:max-w-2xl"
+            className="absolute w-full px-4 cursor-grab active:cursor-grabbing h-full"
           >
-            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border-2 border-ormi-green-200 h-[380px] flex flex-col relative group">
+            <div className="bg-white dark:bg-slate-700 rounded-xl shadow-2xl overflow-hidden border border-jeju-light-divider dark:border-slate-600 h-full flex flex-col relative group">
               {/* Card Image */}
-              <div className="h-48 w-full bg-gray-200 relative overflow-hidden">
+              <div className="h-[360px] w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden">
                 <img
-                  src={currentCard.img_url}
+                  src={currentCard.img_url || fallbackImage}
                   alt={currentCard.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  draggable={false}
+                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null; // Prevent infinite loop
+                    e.currentTarget.src = fallbackImage;
+                  }}
                 />
-                <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-md animate-bounce">
+                <div className="absolute top-4 right-4 bg-jeju-light-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-bounce transform origin-right">
                   AI 매칭 98%
                 </div>
+                {/* Gradient Overlay for better text readability if needed */}
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
               </div>
 
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-xl font-bold text-gray-900 line-clamp-1">
+              <div className="p-6 flex flex-col flex-1 bg-white dark:bg-slate-700 relative">
+                <div className="flex justify-between items-start mb-1">
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white line-clamp-1 leading-tight">
                     {currentCard.title}
                   </h3>
-                  {distance && (
-                    <span className="text-xs text-gray-400 whitespace-nowrap pt-1">
-                      📍 {distance}km
-                    </span>
-                  )}
                 </div>
 
-                <p className="text-gray-500 text-sm line-clamp-2 mb-4 flex-1">
+                {distance && (
+                  <div className="flex items-center gap-1 text-sm text-ormi-pink-500 dark:text-ormi-pink-400 font-medium mb-3">
+                    <span>📍 현 위치에서 {distance}km</span>
+                  </div>
+                )}
+
+                <p className="text-gray-600 dark:text-gray-300 text-base line-clamp-2 mb-4 flex-1">
                   {currentCard.description}
                 </p>
 
-                <div className="w-full">
+                <div className="w-full mt-auto">
                   <Button
-                    variant="outlined"
-                    color="ember"
-                    fullWidth
+                    variant="primary"
+                    className="w-full bg-jeju-light-primary hover:bg-jeju-light-primary-variant text-white py-4 text-lg rounded-2xl shadow-jeju-light-primary/30 shadow-lg border-transparent"
                     onClick={handleNext}
                   >
-                    자세히 보기
+                    다음 장소 보기
                   </Button>
                 </div>
               </div>

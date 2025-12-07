@@ -11,10 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UserRouteImport } from './routes/user'
 import { Route as SignupRouteImport } from './routes/signup'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as OrmiTeamRouteImport } from './routes/ormi-team'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as Landing2RouteImport } from './routes/landing2'
 import { Route as LandingRouteImport } from './routes/landing'
+import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
@@ -29,9 +30,9 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+const OrmiTeamRoute = OrmiTeamRouteImport.update({
+  id: '/ormi-team',
+  path: '/ormi-team',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -47,6 +48,11 @@ const Landing2Route = Landing2RouteImport.update({
 const LandingRoute = LandingRouteImport.update({
   id: '/landing',
   path: '/landing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SplatRoute = SplatRouteImport.update({
+  id: '/$',
+  path: '/$',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -67,10 +73,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
+  '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -78,10 +85,11 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
+  '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -90,10 +98,11 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/$': typeof SplatRoute
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
+  '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
   '/auth/callback': typeof AuthCallbackRoute
@@ -103,10 +112,11 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/$'
     | '/landing'
     | '/landing2'
     | '/login'
-    | '/onboarding'
+    | '/ormi-team'
     | '/signup'
     | '/user'
     | '/auth/callback'
@@ -114,10 +124,11 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/$'
     | '/landing'
     | '/landing2'
     | '/login'
-    | '/onboarding'
+    | '/ormi-team'
     | '/signup'
     | '/user'
     | '/auth/callback'
@@ -125,10 +136,11 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/$'
     | '/landing'
     | '/landing2'
     | '/login'
-    | '/onboarding'
+    | '/ormi-team'
     | '/signup'
     | '/user'
     | '/auth/callback'
@@ -137,10 +149,11 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SplatRoute: typeof SplatRoute
   LandingRoute: typeof LandingRoute
   Landing2Route: typeof Landing2Route
   LoginRoute: typeof LoginRoute
-  OnboardingRoute: typeof OnboardingRoute
+  OrmiTeamRoute: typeof OrmiTeamRoute
   SignupRoute: typeof SignupRoute
   UserRoute: typeof UserRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
@@ -163,11 +176,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
+    '/ormi-team': {
+      id: '/ormi-team'
+      path: '/ormi-team'
+      fullPath: '/ormi-team'
+      preLoaderRoute: typeof OrmiTeamRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -189,6 +202,13 @@ declare module '@tanstack/react-router' {
       path: '/landing'
       fullPath: '/landing'
       preLoaderRoute: typeof LandingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$': {
+      id: '/$'
+      path: '/$'
+      fullPath: '/$'
+      preLoaderRoute: typeof SplatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -217,10 +237,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SplatRoute: SplatRoute,
   LandingRoute: LandingRoute,
   Landing2Route: Landing2Route,
   LoginRoute: LoginRoute,
-  OnboardingRoute: OnboardingRoute,
+  OrmiTeamRoute: OrmiTeamRoute,
   SignupRoute: SignupRoute,
   UserRoute: UserRoute,
   AuthCallbackRoute: AuthCallbackRoute,

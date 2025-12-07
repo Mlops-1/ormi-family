@@ -56,6 +56,7 @@ export class ProfileService {
       nickname: profileInput.nickname.trim(),
       preferredCategories: profileInput.preferredCategories,
       accessibilityConditions: profileInput.accessibilityConditions,
+      profileImage: profileInput.profileImage,
       createdAt: now,
       updatedAt: now,
     };
@@ -118,6 +119,10 @@ export class ProfileService {
       accessibilityConditions:
         updates.accessibilityConditions ??
         existingProfile.accessibilityConditions,
+      profileImage:
+        updates.profileImage !== undefined
+          ? updates.profileImage
+          : existingProfile.profileImage,
       updatedAt: new Date().toISOString(),
     };
 

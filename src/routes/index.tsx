@@ -6,7 +6,9 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
 import { MOCK_SPOTS } from '@/data/spots';
+import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
+import type { Coordinates } from '@/types/geo';
 import { SpotCategory } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
@@ -26,6 +28,10 @@ function IndexPage() {
 function IndexPageContent() {
   const navigate = useNavigate();
   const location = useGeoLocation();
+  const { profile } = useAuth(); // Get profile
+  const [manualLocation, setManualLocation] = useState<Coordinates | null>(
+    null
+  );
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [notifications, setNotifications] = useState<
     Array<{ id: string; content: string }>
@@ -41,28 +47,24 @@ function IndexPageContent() {
     selectedCategories.includes(spot.category)
   );
 
-  const handleGeoClick = () => {
+  const effectiveCoordinates = manualLocation || location.coordinates;
+
+  const handleLocationChange = (coords: Coordinates) => {
+    setManualLocation(coords);
+    // Optional: Notify user
     const id = Date.now().toString();
-    const lat = location.coordinates.lat.toFixed(4);
-    const lon = location.coordinates.lon.toFixed(4);
-
-    // Provide feedback on source
-    const sourceInfo = location.isFallback ? ' (기본 위치)' : ' (GPS)';
-    const errorInfo = location.error ? ` - ${location.error.message}` : '';
-
     setNotifications((prev) => [
       ...prev,
-      { id, content: `현재 위경도${sourceInfo}: ${lat}, ${lon}${errorInfo}` },
+      { id, content: '위치가 변경되었습니다.' },
     ]);
-
     setTimeout(() => {
       setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 5000);
+    }, 3000);
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start pt-12 px-4 pb-8 md:px-6 md:py-12 bg-linear-to-br from-ormi-green-100 via-ormi-ember-100 to-ormi-pink-100 relative">
-      <div className="text-center w-full max-w-lg md:max-w-2xl transition-all duration-300">
+    <div className="min-h-screen flex flex-col items-center justify-start pt-4 px-4 pb-4 md:px-6 md:py-8 bg-jeju-light-background dark:bg-jeju-dark-background relative overflow-hidden text-jeju-light-text-primary dark:text-jeju-dark-text-primary">
+      <div className="text-center w-full max-w-lg md:max-w-2xl transition-all duration-300 flex flex-col h-full">
         {/* Global Notification */}
         {notifications.length > 0 && (
           <AppNotification
@@ -76,19 +78,25 @@ function IndexPageContent() {
           />
         )}
 
-        {/* Geo & Weather Section */}
+        {/* Geo & Weather Section - Compact */}
         {location.loaded && (
-          <div className="mb-8 animate-fade-in">
+          <div className="mb-2 animate-fade-in shrink-0">
+            {/* Header: Location & User Actions */}
             <GeoLocation
-              coordinates={location.coordinates}
-              onLocationClick={handleGeoClick}
+              coordinates={effectiveCoordinates}
+              onLocationChange={handleLocationChange}
               onHelpClick={() => setShowOnboarding(true)}
               onUserClick={() => navigate({ to: '/user' })}
+              user={profile}
             />
-            <WeatherWidget coordinates={location.coordinates} />
 
-            {/* Category Filter */}
-            <div className="mt-6 mb-2">
+            {/* Weather Section */}
+            <div className="mt-1 w-full">
+              <WeatherWidget coordinates={effectiveCoordinates} />
+            </div>
+
+            {/* Category Filter - Compact */}
+            <div className="mt-2 mb-2">
               <CategoryFilter
                 selected={selectedCategories}
                 onChange={setSelectedCategories}
@@ -102,10 +110,12 @@ function IndexPageContent() {
           onClose={() => setShowOnboarding(false)}
         />
 
-        <SwipeableCardList
-          items={filteredSpots}
-          userLocation={location.loaded ? location.coordinates : undefined}
-        />
+        <div className="flex-1 flex items-center justify-center min-h-0">
+          <SwipeableCardList
+            items={filteredSpots}
+            userLocation={location.loaded ? effectiveCoordinates : undefined}
+          />
+        </div>
       </div>
     </div>
   );

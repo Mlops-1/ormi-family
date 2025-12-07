@@ -1,6 +1,50 @@
 @import 'tailwindcss';
 
+@variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: 'JejuGothic';
+  src:
+    url('../assets/fonts/JejuGothic.ttf') format('truetype'),
+    url('../assets/fonts/JejuGothicOTF.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 @theme {
+  --font-jeju: 'JejuGothic', sans-serif;
+
+  /* Jeju Tangerine Palette - Light */
+  --color-jeju-light-primary: #ff8a00;
+  --color-jeju-light-primary-variant: #ff6a00;
+  --color-jeju-light-secondary: #4caf50;
+  --color-jeju-light-secondary-variant: #6ccf70;
+  --color-jeju-light-background: #fffdf9;
+  --color-jeju-light-surface: #ffffff;
+  --color-jeju-light-divider: #e5e5e5;
+  --color-jeju-light-text-primary: #1a1a1a;
+  --color-jeju-light-text-secondary: #555555;
+  --color-jeju-light-text-disabled: #9e9e9e;
+  --color-jeju-light-error: #e53935;
+  --color-jeju-light-success: #43a047;
+  --color-jeju-light-info: #0288d1;
+
+  /* Jeju Tangerine Palette - Dark */
+  --color-jeju-dark-primary: #ff9100;
+  --color-jeju-dark-primary-variant: #ff7800;
+  --color-jeju-dark-secondary: #66bb6a;
+  --color-jeju-dark-secondary-variant: #8ee58f;
+  --color-jeju-dark-background: #121212;
+  --color-jeju-dark-surface: #1e1e1e;
+  --color-jeju-dark-elevated-surface: #2a2a2a;
+  --color-jeju-dark-divider: #333333;
+  --color-jeju-dark-text-primary: #ffffff;
+  --color-jeju-dark-text-secondary: #cccccc;
+  --color-jeju-dark-text-disabled: #777777;
+  --color-jeju-dark-error: #ef5350;
+  --color-jeju-dark-success: #66bb6a;
+  --color-jeju-dark-info: #29b6f6;
+
   /* Ormi Family Color Palette */
   /* Pink - From the tulips */
   --color-ormi-pink-100: #fce7f3;
@@ -58,16 +102,16 @@
   }
 
   html {
-    @apply h-full;
+    @apply h-full font-jeju break-keep tracking-normal leading-normal text-base;
     /* iPhone mini 최소 너비 설정 (375px) */
     min-width: 375px;
   }
 
   body {
-    @apply min-h-screen m-0 p-0;
-    background-color: var(
-      --color-ormi-green-100
-    ); /* Cloudscape 배경 대신 우리가 만든 은은한 그린 사용 */
+    @apply min-h-screen m-0 p-0 transition-colors duration-300;
+    @apply bg-ormi-green-100 text-slate-900;
+    @apply dark:bg-slate-900 dark:text-slate-100;
+
     /* 최소 너비 이하에서 가로 스크롤 허용 */
     min-width: 375px;
     overflow-x: auto;
@@ -83,8 +127,8 @@
 @layer components {
   /* 모바일 컨테이너 - 최대 태블릿 크기 */
   .mobile-container {
-    @apply w-full max-w-2xl mx-auto shadow-2xl min-h-screen;
-    background-color: white;
+    @apply w-full max-w-2xl mx-auto shadow-2xl min-h-screen transition-colors duration-300;
+    @apply bg-white dark:bg-slate-800;
     min-width: 375px;
   }
 

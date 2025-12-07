@@ -57,7 +57,16 @@ export default function AuthProvider({ children }: AuthProviderProps) {
       authService.initializeCognito();
 
       // Check if user is authenticated with Cognito
-      const isAuth = await authService.isAuthenticated();
+      // Bypass for mock demo user
+      const currentAuthData = storageService.getAuthData();
+      const isMockUser = currentAuthData?.ciValue === 'demo-user-1';
+
+      let isAuth = false;
+      if (isMockUser) {
+        isAuth = true;
+      } else {
+        isAuth = await authService.isAuthenticated();
+      }
 
       if (!isAuth) {
         // No active Cognito session, clear local storage
@@ -66,8 +75,21 @@ export default function AuthProvider({ children }: AuthProviderProps) {
         return;
       }
 
-      // Get current user from Cognito
-      const currentUser = await authService.getCurrentUser();
+      // Get current user from Cognito (or mock)
+      let currentUser: CognitoUser | null = null;
+
+      if (isMockUser) {
+        currentUser = {
+          username: 'demo-user-1',
+          attributes: {
+            sub: 'demo-user-1',
+            email: 'demo@example.com',
+            name: 'Demo User',
+          },
+        };
+      } else {
+        currentUser = await authService.getCurrentUser();
+      }
 
       if (!currentUser) {
         storageService.clearAllUserData();

@@ -33,6 +33,7 @@ export interface UserProfile {
   nickname: string; // 2-20 characters
   preferredCategories: SpotCategory[]; // One or more categories
   accessibilityConditions: AccessibilityCondition[]; // Zero or more conditions
+  profileImage?: string; // Base64 or URL
   createdAt: string; // ISO 8601 timestamp
   updatedAt: string; // ISO 8601 timestamp
 }
@@ -44,6 +45,7 @@ export interface UserProfileInput {
   nickname: string;
   preferredCategories: SpotCategory[];
   accessibilityConditions: AccessibilityCondition[];
+  profileImage?: string;
 }
 
 /**

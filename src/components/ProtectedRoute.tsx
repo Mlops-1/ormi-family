@@ -32,7 +32,7 @@ export default function ProtectedRoute({
 
     // Redirect to onboarding if profile is required but incomplete
     if (requireProfile && !isProfileComplete) {
-      navigate({ to: '/onboarding' });
+      navigate({ to: '/user' });
       return;
     }
   }, [isAuthenticated, isProfileComplete, loading, requireProfile, navigate]);
