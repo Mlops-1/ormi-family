@@ -27,3 +27,14 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Kiro IDE
+.kiro
+
+# TanStack Router
+.tanstack
+
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

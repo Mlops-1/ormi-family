@@ -2,6 +2,7 @@ import CategoryFilter from '@/components/CategoryFilter';
 import GeoLocation from '@/components/GeoLocation';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
+import ProtectedRoute from '@/components/ProtectedRoute';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
 import { MOCK_SPOTS } from '@/data/spots';
@@ -15,6 +16,14 @@ export const Route = createFileRoute('/')({
 });
 
 function IndexPage() {
+  return (
+    <ProtectedRoute>
+      <IndexPageContent />
+    </ProtectedRoute>
+  );
+}
+
+function IndexPageContent() {
   const navigate = useNavigate();
   const location = useGeoLocation();
   const [showOnboarding, setShowOnboarding] = useState(false);

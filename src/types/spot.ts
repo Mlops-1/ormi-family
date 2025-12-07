@@ -1,8 +1,10 @@
-export enum SpotCategory {
-  CAFE = 'CAFE',
-  DINNER = 'DINNER',
-  LANDMARK = 'LANDMARK',
-}
+export const SpotCategory = {
+  CAFE: 'CAFE',
+  DINNER: 'DINNER',
+  LANDMARK: 'LANDMARK',
+} as const;
+
+export type SpotCategory = (typeof SpotCategory)[keyof typeof SpotCategory];
 
 export interface SpotCard {
   contentid: number;

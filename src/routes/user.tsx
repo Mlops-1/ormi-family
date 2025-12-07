@@ -1,3 +1,4 @@
+import ProtectedRoute from '@/components/ProtectedRoute';
 import RadioGroup from '@/components/RadioGroup';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, CircleUser, Edit2 } from 'lucide-react';
@@ -8,6 +9,14 @@ export const Route = createFileRoute('/user')({
 });
 
 function UserPage() {
+  return (
+    <ProtectedRoute requireProfile={true}>
+      <UserPageContent />
+    </ProtectedRoute>
+  );
+}
+
+function UserPageContent() {
   const navigate = useNavigate();
   const [name, setName] = useState('오르미');
   const [isEditingName, setIsEditingName] = useState(false);

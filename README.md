@@ -265,3 +265,111 @@ ormi-family/
 ## 📄 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 있습니다.
+
+---
+
+## 🔐 AWS Cognito 설정
+
+이 애플리케이션은 AWS Cognito를 사용하여 Google 및 X(Twitter) 소셜 로그인을 지원합니다.
+
+**📖 자세한 설정 가이드**: [docs/COGNITO_SETUP_GUIDE.md](docs/COGNITO_SETUP_GUIDE.md)
+
+### 빠른 시작
+
+1. `.env.example` 파일을 `.env`로 복사
+2. [상세 가이드](docs/COGNITO_SETUP_GUIDE.md)를 따라 Cognito 설정
+3. `.env` 파일에 실제 값 입력
+4. `npm run dev`로 테스트
+
+### Cognito User Pool 생성
+
+1. **AWS Console에서 Cognito User Pool 생성**
+   - AWS Console → Amazon Cognito → User Pools → Create user pool
+   - Sign-in options: Email 선택
+   - Password policy: 기본값 사용 (소셜 로그인만 사용하는 경우 적용되지 않음)
+   - MFA: Optional (선택사항)
+   - User account recovery: Email 선택
+
+2. **App Client 설정**
+   - App client name: 원하는 이름 입력
+   - Authentication flows:
+     - ✅ Authorization code grant
+     - ✅ Implicit grant (SPA용)
+   - Token expiration:
+     - Access token: 1 hour
+     - Refresh token: 30 days
+     - ID token: 1 hour
+
+3. **Hosted UI 설정**
+   - Cognito domain: 고유한 도메인 이름 입력
+   - Callback URLs:
+     - Development: `http://localhost:5173/auth/callback`
+     - Production: `https://yourdomain.com/auth/callback`
+   - Sign-out URLs:
+     - Development: `http://localhost:5173/login`
+     - Production: `https://yourdomain.com/login`
+   - OAuth 2.0 scopes: `openid`, `email`, `profile` 선택
+
+### Identity Provider 설정
+
+#### Google OAuth 설정
+
+1. **Google Cloud Console에서 OAuth 2.0 클라이언트 생성**
+   - [Google Cloud Console](https://console.cloud.google.com/) 접속
+   - APIs & Services → Credentials → Create Credentials → OAuth client ID
+   - Application type: Web application
+   - Authorized redirect URIs:
+     - `https://your-cognito-domain.auth.ap-northeast-2.amazoncognito.com/oauth2/idpresponse`
+
+2. **Cognito에 Google Provider 추가**
+   - Cognito User Pool → Sign-in experience → Federated identity provider sign-in
+   - Add identity provider → Google
+   - Client ID: Google에서 생성한 Client ID
+   - Client secret: Google에서 생성한 Client Secret
+   - Authorize scope: `openid email profile`
+   - Attribute mapping:
+     - `email` → `email`
+     - `name` → `name`
+     - `picture` → `picture`
+
+#### X (Twitter) OAuth 설정
+
+1. **X Developer Portal에서 앱 생성**
+   - [X Developer Portal](https://developer.twitter.com/) 접속
+   - Projects & Apps → Create App
+   - App settings → User authentication settings
+   - Type of App: Web App
+   - Callback URLs:
+     - `https://your-cognito-domain.auth.ap-northeast-2.amazoncognito.com/oauth2/idpresponse`
+
+2. **Cognito에 X Provider 추가**
+   - Cognito User Pool → Sign-in experience → Federated identity provider sign-in
+   - Add identity provider → Twitter
+   - API key: X에서 생성한 API Key
+   - API secret key: X에서 생성한 API Secret Key
+   - Authorize scope: `openid email profile`
+   - Attribute mapping:
+     - `email` → `email`
+     - `name` → `name`
+     - `profile_image_url` → `picture`
+
+### 환경 변수 설정
+
+`.env` 파일에 다음 값들을 설정하세요:
+
+```env
+# AWS Cognito Configuration
+VITE_COGNITO_REGION=ap-northeast-2
+VITE_COGNITO_USER_POOL_ID=ap-northeast-2_xxxxxxxxx
+VITE_COGNITO_CLIENT_ID=your-client-id
+VITE_COGNITO_DOMAIN=your-domain.auth.ap-northeast-2.amazoncognito.com
+VITE_COGNITO_REDIRECT_SIGN_IN=http://localhost:5173/auth/callback
+VITE_COGNITO_REDIRECT_SIGN_OUT=http://localhost:5173/login
+```
+
+### 설정 확인
+
+1. 모든 환경 변수가 올바르게 설정되었는지 확인
+2. Cognito User Pool의 App client이 활성화되어 있는지 확인
+3. Identity Provider (Google, X)가 올바르게 연결되어 있는지 확인
+4. Callback URL과 Sign-out URL이 정확한지 확인
