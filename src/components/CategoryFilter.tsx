@@ -1,13 +1,14 @@
+import type { SpotCategoryType } from '@/types/spot';
 import { SpotCategory } from '@/types/spot';
-import { Check, Coffee, Landmark, Utensils } from 'lucide-react';
+import { Bed, Check, Coffee, Landmark, Utensils } from 'lucide-react';
 
 interface Props {
-  selected: SpotCategory[];
-  onChange: (selected: SpotCategory[]) => void;
+  selected: SpotCategoryType[];
+  onChange: (selected: SpotCategoryType[]) => void;
 }
 
 export default function CategoryFilter({ selected, onChange }: Props) {
-  const toggle = (cat: SpotCategory) => {
+  const toggle = (cat: SpotCategoryType) => {
     if (selected.includes(cat)) {
       onChange(selected.filter((c) => c !== cat));
     } else {
@@ -15,21 +16,30 @@ export default function CategoryFilter({ selected, onChange }: Props) {
     }
   };
 
-  const isSelected = (cat: SpotCategory) => selected.includes(cat);
+  const isSelected = (cat: SpotCategoryType) => selected.includes(cat);
 
   const categories = [
     {
-      id: SpotCategory.LANDMARK,
+      id: SpotCategory.TOURIST_SPOT,
       label: '관광지',
       icon: <Landmark size={18} />,
     },
     { id: SpotCategory.CAFE, label: '카페', icon: <Coffee size={18} /> },
-    { id: SpotCategory.DINNER, label: '맛집', icon: <Utensils size={18} /> },
+    {
+      id: SpotCategory.RESTAURANT,
+      label: '맛집',
+      icon: <Utensils size={18} />,
+    },
+    {
+      id: SpotCategory.ACCOMMODATION,
+      label: '숙박',
+      icon: <Bed size={18} />,
+    },
   ];
 
   return (
     <div className="w-full px-4 mb-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         {categories.map((cat) => {
           const active = isSelected(cat.id);
           return (

@@ -1,3 +1,4 @@
+import { SpotAPI } from '@/api/spot';
 import CategoryFilter from '@/components/CategoryFilter';
 import GeoLocation from '@/components/GeoLocation';
 import AppNotification from '@/components/Notification';
@@ -5,11 +6,11 @@ import OnboardingOverlay from '@/components/OnboardingOverlay';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
-import { MOCK_SPOTS } from '@/data/spots';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import type { Coordinates } from '@/types/geo';
-import { SpotCategory } from '@/types/spot';
+import { SpotCategory, type SpotCategoryType } from '@/types/spot';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -28,7 +29,7 @@ function IndexPage() {
 function IndexPageContent() {
   const navigate = useNavigate();
   const location = useGeoLocation();
-  const { profile } = useAuth(); // Get profile
+  const { profile } = useAuth();
   const [manualLocation, setManualLocation] = useState<Coordinates | null>(
     null
   );
@@ -37,20 +38,40 @@ function IndexPageContent() {
     Array<{ id: string; content: string }>
   >([]);
 
-  const [selectedCategories, setSelectedCategories] = useState<SpotCategory[]>([
-    SpotCategory.LANDMARK,
+  const [selectedCategories, setSelectedCategories] = useState<
+    SpotCategoryType[]
+  >([
+    SpotCategory.TOURIST_SPOT,
     SpotCategory.CAFE,
-    SpotCategory.DINNER,
+    SpotCategory.RESTAURANT,
+    SpotCategory.ACCOMMODATION,
   ]);
-
-  const filteredSpots = MOCK_SPOTS.filter((spot) =>
-    selectedCategories.includes(spot.category)
-  );
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
+  const {
+    data: spots,
+    isError,
+    isLoading,
+  } = useQuery({
+    queryKey: ['spots', effectiveCoordinates, selectedCategories],
+    queryFn: async () => {
+      if (!effectiveCoordinates) return [];
+      const response = await SpotAPI.getRecommendedSpots({
+        user_id: 1, // Hardcoded as requested
+        mapx: effectiveCoordinates.lon,
+        mapy: effectiveCoordinates.lat,
+        filter_type: selectedCategories.length > 0 ? selectedCategories : null,
+      });
+      return response.data;
+    },
+    enabled: !!effectiveCoordinates,
+    retry: 1,
+  });
+
   const handleLocationChange = (coords: Coordinates) => {
-    setManualLocation(coords);
+    setManualLocation(coords); // This will trigger refetch via useEffect dependency in useQuery
+
     // Optional: Notify user
     const id = Date.now().toString();
     setNotifications((prev) => [
@@ -111,10 +132,22 @@ function IndexPageContent() {
         />
 
         <div className="flex-1 flex items-center justify-center min-h-0">
-          <SwipeableCardList
-            items={filteredSpots}
-            userLocation={location.loaded ? effectiveCoordinates : undefined}
-          />
+          {isError || (spots && spots.length === 0) ? (
+            <div className="text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
+              현재 근처에 관광지가 없습니다.
+            </div>
+          ) : isLoading ? (
+            <div className="animate-pulse flex flex-col items-center justify-center space-y-4 w-full h-full">
+              <div className="w-full h-64 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+            </div>
+          ) : (
+            <SwipeableCardList
+              items={spots || []}
+              userLocation={location.loaded ? effectiveCoordinates : undefined}
+            />
+          )}
         </div>
       </div>
     </div>

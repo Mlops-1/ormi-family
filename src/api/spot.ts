@@ -1,4 +1,4 @@
-import type { SpotCard } from '@/types/spot';
+import type { SpotCard, SpotRequest } from '@/types/spot';
 import instance from './instance';
 
 // Define expected response structure if needed.
@@ -7,8 +7,6 @@ import instance from './instance';
 // We usually expect response.data to be the payload.
 
 export const SpotAPI = {
-  getSpotList: () => instance.get<SpotCard[]>('/api/v1/spots'),
-
-  getSpotDetailById: (id: number) =>
-    instance.get<SpotCard>(`/api/v1/spots/${id}`),
+  getRecommendedSpots: (data: SpotRequest) =>
+    instance.post<SpotCard[]>('/spot', data),
 };

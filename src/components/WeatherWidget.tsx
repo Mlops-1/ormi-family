@@ -6,7 +6,7 @@ interface Props {
 }
 
 export default function WeatherWidget({ coordinates }: Props) {
-  const { current, loading, error } = useWeather(coordinates);
+  const { current, forecast, loading, error } = useWeather(coordinates);
 
   // Helper to interpret UV
   const getUVStatus = (uv: number) => {
@@ -82,38 +82,33 @@ export default function WeatherWidget({ coordinates }: Props) {
       {/* d. 날씨 (Weather) */}
       <div className="bg-white dark:bg-slate-700 rounded-xl shadow-sm border border-ormi-blue-100 dark:border-slate-600 p-6 flex flex-col md:flex-row items-center justify-between transition-all hover:shadow-md">
         <div className="flex items-center gap-4">
-          <img
-            src={iconUrl}
-            alt={weather.description}
-            className="w-16 h-16 drop-shadow-sm"
-          />
-          <div>
+          <div className="flex items-center gap-2">
+            <img
+              src={iconUrl}
+              alt={weather.description}
+              className="w-16 h-16 drop-shadow-sm"
+            />
             <div className="text-3xl font-bold text-gray-800 dark:text-gray-100 whitespace-nowrap">
               {Math.round(current.temp)}°
-            </div>
-            <div className="text-gray-500 dark:text-gray-300 capitalize whitespace-nowrap break-keep text-sm">
-              {weather.description}
             </div>
           </div>
         </div>
 
-        <div className="mt-4 md:mt-0 flex gap-4 text-center text-sm text-gray-500 dark:text-gray-300">
-          <div>
-            <span className="block text-gray-400 dark:text-gray-400 text-xs mb-1 whitespace-nowrap">
-              체감
-            </span>
-            <span className="font-semibold whitespace-nowrap">
-              {Math.round(current.feels_like)}°
-            </span>
-          </div>
-          <div>
-            <span className="block text-gray-400 dark:text-gray-400 text-xs mb-1 whitespace-nowrap">
-              습도
-            </span>
-            <span className="font-semibold whitespace-nowrap">
-              {current.humidity}%
-            </span>
-          </div>
+        {/* Forecast Icons */}
+        <div className="mt-4 md:mt-0 flex gap-2 md:gap-4 overflow-x-auto no-scrollbar">
+          {forecast &&
+            forecast.map((item, index) => (
+              <div
+                key={index}
+                className="flex flex-col items-center min-w-[32px]"
+              >
+                <img
+                  src={`http://openweathermap.org/img/wn/${item.weather[0].icon}.png`}
+                  alt={item.weather[0].description}
+                  className="w-8 h-8 opacity-80"
+                />
+              </div>
+            ))}
         </div>
       </div>
 

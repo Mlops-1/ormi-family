@@ -56,6 +56,7 @@ export default function GeoLocation({
       const res = await axios.get<TmapReverseGeocodeResponse>(
         `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${coords.lat}&lon=${coords.lon}&addressType=A02&appKey=${APP_KEY}`
       );
+      console.log('Geo API Response:', res.data);
 
       const info = res.data.addressInfo;
       if (info) {
@@ -92,6 +93,7 @@ export default function GeoLocation({
 
   // 1. Initial Reverse Geocoding for display (current coordinates)
   useEffect(() => {
+    console.log('New Coords (On Load):', coordinates);
     fetchAddressFromCoords(coordinates, (addr) => {
       setAddress(addr);
     });
@@ -100,6 +102,7 @@ export default function GeoLocation({
 
   const checkMarkerPosition = (latLng: Tmapv2.LatLng) => {
     const newCoords = { lat: latLng.lat(), lon: latLng.lng() };
+    console.log('New Coords (Marker):', newCoords);
     fetchAddressFromCoords(newCoords, setMapAddress);
   };
 

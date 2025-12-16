@@ -38,6 +38,20 @@ npm run lint
 npm run preview
 ```
 
+### ⚠️ 백엔드 API 연동 시 주의사항 (Proxy/CORS)
+
+현재 백엔드 서버가 로컬호스트가 아닌 AWS 등에 배포되어 있을 때, 로컬 개발 환경에서 CORS 오류가 발생할 수 있습니다.
+이를 해결하기 위해 `vite.config.ts`에 Proxy 설정이 되어 있습니다.
+
+**주의:** `.env` 파일에 `VITE_API_BASE_URL`이 설정되어 있으면 Proxy가 작동하지 않고 직접 요청을 보내게 되어 CORS 오류가 발생할 수 있습니다.
+로컬 개발 시에는 해당 환경변수를 주석 처리하거나 제거해주세요.
+
+```bash
+# .env
+# 이 부분이 있다면 주석 처리해주세요!
+# VITE_API_BASE_URL=http://13.209.98.82:8000
+```
+
 ### VS Code 터미널 설정 (Windows 사용자)
 
 Windows CMD에서 `Ctrl+C` 종료 시 "일괄 작업을 끝내시겠습니까?" 메시지를 방지하려면 PowerShell을 기본 터미널로 설정하세요.

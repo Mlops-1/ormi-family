@@ -3,7 +3,8 @@ import axios from 'axios';
 import responseErrorInterceptor from './interceptor';
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  // Use relative path to leverage Vite proxy in development
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });

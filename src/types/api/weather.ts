@@ -71,4 +71,29 @@ interface OneCallData {
   daily: OneCallDaily[];
 }
 
-export type { CurrentWeatherData, GeoCodingData, OneCallData, UVData };
+export interface ForecastItem {
+  dt: number;
+  main: {
+    temp: number;
+    feels_like: number;
+    temp_min: number;
+    temp_max: number;
+    humidity: number;
+  };
+  weather: WeatherCondition[];
+}
+
+export interface ForecastData {
+  cod: string;
+  message: number;
+  cnt: number;
+  list: ForecastItem[];
+}
+
+export type {
+  CurrentWeatherData,
+  ForecastData,
+  GeoCodingData,
+  OneCallData,
+  UVData,
+};

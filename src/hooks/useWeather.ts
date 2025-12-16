@@ -1,4 +1,4 @@
-import type { CurrentWeatherData } from '@/types/api/weather';
+import type { CurrentWeatherData, ForecastData } from '@/types/api/weather';
 import type { Coordinates } from '@/types/geo';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
@@ -11,6 +11,12 @@ export interface WeatherResult {
     uvi: number; // Might be missing in 2.5 fallback
     weather: { icon: string; description: string }[];
   };
+  // Hourly/Forecast: simplified structure
+  forecast?: {
+    dt: number;
+    temp: number;
+    weather: { icon: string; description: string }[];
+  }[];
   daily?: {
     temp: { min: number; max: number };
   }[];
@@ -57,6 +63,27 @@ export default function useWeather(
           uvi = 7; // Fallback
         }
 
+        // Fetch Forecast (3-hour steps)
+        let forecastList: {
+          dt: number;
+          temp: number;
+          weather: { icon: string; description: string }[];
+        }[] = [];
+        try {
+          const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${coordinates.lat}&lon=${coordinates.lon}&units=metric&lang=kr&appid=${API_KEY}`;
+          const forecastRes = await axios.get<ForecastData>(forecastUrl);
+          if (forecastRes.data && forecastRes.data.list) {
+            // Get next 5 items
+            forecastList = forecastRes.data.list.slice(0, 5).map((item) => ({
+              dt: item.dt,
+              temp: item.main.temp,
+              weather: item.weather,
+            }));
+          }
+        } catch (e) {
+          console.error('Forecast fetch failed', e);
+        }
+
         setData({
           loading: false,
           error: null,
@@ -71,6 +98,7 @@ export default function useWeather(
           daily: [
             { temp: { min: json.main.temp_min, max: json.main.temp_max } },
           ],
+          forecast: forecastList,
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : 'Unknown Error';
