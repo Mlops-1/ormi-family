@@ -4,6 +4,7 @@
  */
 
 import { analyticsConfig, validateConfig } from '@/config/analytics';
+import { TEMP_USER_ID } from '@/constants/temp_user';
 import type { AnalyticsEvent, EventType } from '@/types/analytics';
 import {
   sanitizeAnalyticsEvent,
@@ -46,7 +47,7 @@ export class AnalyticsService {
    */
   async trackLikeEvent(
     contentId: string,
-    additionalData?: Record<string, any>
+    additionalData?: Record<string, unknown>
   ): Promise<void> {
     await this.trackEvent('LIKE', contentId, additionalData);
   }
@@ -99,8 +100,8 @@ export class AnalyticsService {
     additionalData?: Record<string, unknown>
   ): Promise<void> {
     try {
-      // Get current user ID from auth context (simplified to "1" for now)
-      const userId = '1';
+      // Get current user ID from auth context
+      const userId = TEMP_USER_ID.toString();
 
       // Get location if user has consented
       const location = await this.getUserLocation();

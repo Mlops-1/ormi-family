@@ -1,6 +1,7 @@
 import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import AccessibilityInfo from '@/components/AccessibilityInfo';
+import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
@@ -11,7 +12,7 @@ import {
   useTransform,
 } from 'framer-motion';
 import { Heart } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 interface Props {
   items: SpotCard[];
@@ -23,6 +24,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
   const [direction, setDirection] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Analytics integration
   const analytics = useAnalytics();
@@ -40,51 +42,41 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
   // X Position: Follows card but lags very slightly (tight grouping)
   const ghostX = useTransform(x, [-300, 300], [-40, 40]);
 
-  // Reset index when items change to prevent out of bounds
-  // Also reset expanded state when card changes
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsExpanded(false);
-  }, [items]);
+  const currentCard = items[currentIndex];
 
-  useEffect(() => {
-    setIsExpanded(false);
-  }, [currentIndex]);
+  const handleNext = useCallback(
+    async (isSkip = false, swipeDirection?: string, swipeDistance?: number) => {
+      if (items.length === 0) return;
 
-  const handleNext = async (
-    isSkip = false,
-    swipeDirection?: string,
-    swipeDistance?: number
-  ) => {
-    if (items.length === 0) return;
-
-    // Track skip event if this was a skip action
-    if (isSkip && currentCard) {
-      try {
-        await analytics.trackSkip?.(
-          currentCard.content_id.toString(),
-          swipeDirection,
-          swipeDistance
-        );
-      } catch (err) {
-        console.error('Failed to track skip event', err);
+      // Track skip event if this was a skip action
+      if (isSkip && currentCard) {
+        try {
+          await analytics.trackSkip?.(
+            currentCard.content_id.toString(),
+            swipeDirection,
+            swipeDistance
+          );
+        } catch (err) {
+          console.error('Failed to track skip event', err);
+        }
       }
-    }
 
-    setDirection(1);
-    setCurrentIndex((prev) => (prev + 1) % items.length);
-  };
+      setDirection(1);
+      setCurrentIndex((prev) => (prev + 1) % items.length);
+    },
+    [items.length, currentCard, analytics]
+  );
 
-  // ... (inside component)
-
-  const triggerLike = async () => {
+  const triggerLike = useCallback(async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
     setShowLikeOverlay(true);
 
     // Add to favorites API
     if (currentCard) {
       try {
         await FavoritesAPI.addFavorite({
-          user_id: 1,
+          user_id: TEMP_USER_ID,
           content_id: currentCard.content_id,
         });
         console.log(`Added favorite: ${currentCard.content_id}`);
@@ -102,29 +94,37 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     setTimeout(() => {
       setShowLikeOverlay(false);
       handleNext(); // Proceed to next card after like animation
+      setIsProcessing(false);
     }, 1000);
-  };
+  }, [currentCard, isProcessing, analytics, handleNext]);
 
-  const handleDragEnd = (
-    _: MouseEvent | TouchEvent | PointerEvent,
-    info: { offset: { x: number } }
-  ) => {
-    const swipeThreshold = 100; // Increased threshold slightly to prevent accidental likes
-    const { x } = info.offset;
+  const handleDragEnd = useCallback(
+    (
+      _: MouseEvent | TouchEvent | PointerEvent,
+      info: { offset: { x: number } }
+    ) => {
+      if (isProcessing) return;
 
-    // Calculate swipe distance and direction for analytics
-    const swipeDistance = Math.abs(x);
-    const swipeDirection = x < 0 ? 'left' : 'right';
+      const swipeThreshold = 100; // Increased threshold slightly to prevent accidental likes
+      const { x } = info.offset;
 
-    // Reset x manualy if needed, but framer motion handles it on release usually.
-    if (x < -swipeThreshold) {
-      handleNext(true, swipeDirection, swipeDistance); // Pass (Swipe Left) - track as skip
-    } else if (x > swipeThreshold) {
-      triggerLike(); // Like (Swipe Right) - tracked in triggerLike
-    }
-  };
+      // Calculate swipe distance and direction for analytics
+      const swipeDistance = Math.abs(x);
+      const swipeDirection = x < 0 ? 'left' : 'right';
 
-  const currentCard = items[currentIndex];
+      // Reset x manualy if needed, but framer motion handles it on release usually.
+      if (x < -swipeThreshold) {
+        // Swipe Left - Skip
+        // We set processing true briefly if we want to prevent rapid swipes,
+        // but usually skip is instant.
+        // Let's just call handleNext.
+        handleNext(true, swipeDirection, swipeDistance);
+      } else if (x > swipeThreshold) {
+        triggerLike(); // Like (Swipe Right)
+      }
+    },
+    [isProcessing, handleNext, triggerLike]
+  );
 
   const variants = {
     enter: (direction: number) => ({
@@ -199,7 +199,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
             onClick={(e) => e.stopPropagation()} // Block clicks
           >
             <motion.div
@@ -255,7 +255,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                 initial={false}
                 animate={{ height: isExpanded ? 0 : '50%' }}
                 transition={{ duration: 0.3 }}
-                className="w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden flex-shrink-0 rounded-t-xl"
+                className="w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden shrink-0 rounded-t-xl"
               >
                 <img
                   src={currentCard.first_image || fallbackImage}
@@ -271,19 +271,19 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                   AI 매칭 {Math.round(currentCard.score * 100)}%
                 </div>
                 {/* Gradient Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/50 to-transparent opacity-60"></div>
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-black/50 to-transparent opacity-60"></div>
               </motion.div>
 
               {/* Content Area - Expands to fill flex-1 */}
               <div className="p-6 flex flex-col flex-1 bg-white dark:bg-slate-700 relative min-h-0 rounded-b-xl overflow-visible">
-                <div className="flex justify-between items-start mb-1 flex-shrink-0">
+                <div className="flex justify-between items-start mb-1 shrink-0">
                   <h3 className="text-2xl font-bold text-gray-800 dark:text-white line-clamp-1 leading-tight">
                     {currentCard.title}
                   </h3>
                 </div>
 
                 {distance && (
-                  <div className="flex items-center gap-1 text-sm text-ormi-pink-500 dark:text-ormi-pink-400 font-medium mb-3 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-sm text-ormi-pink-500 dark:text-ormi-pink-400 font-medium mb-3 shrink-0">
                     <span>📍 현 위치에서 {distance}km</span>
                   </div>
                 )}
@@ -312,7 +312,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                               e.stopPropagation();
                               setIsExpanded(!isExpanded);
                             }}
-                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1"
+                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1 shrink-0"
                           >
                             {isExpanded ? '접기' : '더보기'}
                           </button>
@@ -326,10 +326,10 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                         {(isExpanded
                           ? currentCard.reviews
                           : [currentCard.reviews[0]]
-                        ).map((review, idx) => (
+                        ).map((review, _idx) => (
                           <div
                             key={review.review_id}
-                            className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg text-sm border-t border-gray-100 dark:border-slate-700 flex-shrink-0"
+                            className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg text-sm border-t border-gray-100 dark:border-slate-700 shrink-0"
                           >
                             <div className="text-xs text-gray-400 mb-1">
                               {new Date(review.created_at).toLocaleDateString(

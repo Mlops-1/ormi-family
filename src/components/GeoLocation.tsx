@@ -5,6 +5,7 @@ import type {
 } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
 import { Icon } from '@cloudscape-design/components';
+import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { MapPin, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -42,68 +43,77 @@ export default function GeoLocation({
 
   const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY;
 
-  // Helper to fetch address via REST API
-  const fetchAddressFromCoords = async (
-    coords: Coordinates,
-    callback: (addr: string) => void
-  ) => {
-    if (!APP_KEY) {
-      callback('API Key Missing');
-      return;
-    }
+  // Fetch address using TanStack Query
+  const { data: addressData } = useQuery({
+    queryKey: ['tmapAddress', coordinates.lat, coordinates.lon],
+    queryFn: async () => {
+      if (!APP_KEY) return 'API Key Missing';
+      try {
+        const res = await axios.get<TmapReverseGeocodeResponse>(
+          `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${coordinates.lat}&lon=${coordinates.lon}&addressType=A02&appKey=${APP_KEY}`
+        );
+        const info = res.data.addressInfo;
+        if (info) {
+          const city = (info.city_do || '')
+            .replace(/제주특별자치도\s*/g, '')
+            .trim();
+          const gu = info.gu_gun || '';
+          const dong = info.legalDong || info.adminDong || '';
 
+          if (gu && dong) return `${gu} ${dong}`;
+          if (city && gu) return `${city} ${gu} ${dong}`;
+          return (info.fullAddress || '주소 미상')
+            .replace(/제주특별자치도\s*/g, '')
+            .trim();
+        }
+        return '주소 찾기 실패';
+      } catch (e) {
+        console.error('Tmap Reverse Geocoding Error:', e);
+        return '위치 확인 불가';
+      }
+    },
+    enabled: !!APP_KEY,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  // Update local address state when query data changes
+  useEffect(() => {
+    if (addressData) setAddress(addressData);
+  }, [addressData]);
+
+  const fetchTmapAddress = async (lat: number, lon: number) => {
+    if (!APP_KEY) return 'API Key Missing';
     try {
       const res = await axios.get<TmapReverseGeocodeResponse>(
-        `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${coords.lat}&lon=${coords.lon}&addressType=A02&appKey=${APP_KEY}`
+        `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${lat}&lon=${lon}&addressType=A02&appKey=${APP_KEY}`
       );
-      console.log('Geo API Response:', res.data);
-
       const info = res.data.addressInfo;
       if (info) {
-        // Construct address: City Gun Gu
-        // Remove '제주특별자치도'
         const city = (info.city_do || '')
           .replace(/제주특별자치도\s*/g, '')
           .trim();
         const gu = info.gu_gun || '';
         const dong = info.legalDong || info.adminDong || '';
 
-        // If City became empty (it was just Jeju), we might just want "Gu Dong"
-        // Example: "제주시 용담1동"
-        let full = '';
-        if (gu && dong) {
-          full = `${gu} ${dong}`;
-        } else if (city && gu) {
-          full = `${city} ${gu} ${dong}`;
-        } else {
-          // Fallback
-          full = info.fullAddress || '주소 미상';
-          full = full.replace(/제주특별자치도\s*/g, '').trim();
-        }
-
-        callback(full.trim());
-      } else {
-        callback('주소 찾기 실패');
+        if (gu && dong) return `${gu} ${dong}`;
+        if (city && gu) return `${city} ${gu} ${dong}`;
+        return (info.fullAddress || '주소 미상')
+          .replace(/제주특별자치도\s*/g, '')
+          .trim();
       }
+      return '주소 찾기 실패';
     } catch (e) {
       console.error('Tmap Reverse Geocoding Error:', e);
-      callback('위치 확인 불가');
+      return '위치 확인 불가';
     }
   };
 
-  // 1. Initial Reverse Geocoding for display (current coordinates)
-  useEffect(() => {
-    console.log('New Coords (On Load):', coordinates);
-    fetchAddressFromCoords(coordinates, (addr) => {
-      setAddress(addr);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coordinates]);
-
-  const checkMarkerPosition = (latLng: Tmapv2.LatLng) => {
-    const newCoords = { lat: latLng.lat(), lon: latLng.lng() };
-    console.log('New Coords (Marker):', newCoords);
-    fetchAddressFromCoords(newCoords, setMapAddress);
+  const checkMarkerPosition = async (latLng: Tmapv2.LatLng) => {
+    const lat = latLng.lat();
+    const lon = latLng.lng();
+    console.log('New Coords (Marker):', { lat, lon });
+    const addr = await fetchTmapAddress(lat, lon);
+    setMapAddress(addr);
   };
 
   // 2. Map Initialization when Modal opens
@@ -142,7 +152,18 @@ export default function GeoLocation({
         markerInstance.current = marker;
 
         // Initial address in modal
-        fetchAddressFromCoords(coordinates, setMapAddress);
+        // Use the cached query data if available and matches, otherwise fetch
+        if (
+          coordinates.lat === latlng.lat() &&
+          coordinates.lon === latlng.lng() &&
+          addressData
+        ) {
+          setMapAddress(addressData);
+        } else {
+          fetchTmapAddress(coordinates.lat, coordinates.lon).then(
+            setMapAddress
+          );
+        }
 
         // Events
         map.addListener('click', (evt: any) => {
