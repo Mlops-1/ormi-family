@@ -21,7 +21,7 @@ export default defineConfig({
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
-      '/user': {
+      '/user/info': {
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
@@ -38,6 +38,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/spot': {
+        target: 'http://13.209.98.82:8000',
+        changeOrigin: true,
+      },
+      '/favorites': {
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },

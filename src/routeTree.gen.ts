@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UserInfoRouteImport } from './routes/user-info'
 import { Route as UserRouteImport } from './routes/user'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as OrmiTeamRouteImport } from './routes/ormi-team'
@@ -20,6 +21,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 
+const UserInfoRoute = UserInfoRouteImport.update({
+  id: '/user-info',
+  path: '/user-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UserRoute = UserRouteImport.update({
   id: '/user',
   path: '/user',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
+  '/user-info': typeof UserInfoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
+  '/user-info': typeof UserInfoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
+  '/user-info': typeof UserInfoRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/ormi-team'
     | '/signup'
     | '/user'
+    | '/user-info'
     | '/auth/callback'
     | '/settings/profile'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/ormi-team'
     | '/signup'
     | '/user'
+    | '/user-info'
     | '/auth/callback'
     | '/settings/profile'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/ormi-team'
     | '/signup'
     | '/user'
+    | '/user-info'
     | '/auth/callback'
     | '/settings/profile'
   fileRoutesById: FileRoutesById
@@ -156,12 +168,20 @@ export interface RootRouteChildren {
   OrmiTeamRoute: typeof OrmiTeamRoute
   SignupRoute: typeof SignupRoute
   UserRoute: typeof UserRoute
+  UserInfoRoute: typeof UserInfoRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/user-info': {
+      id: '/user-info'
+      path: '/user-info'
+      fullPath: '/user-info'
+      preLoaderRoute: typeof UserInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/user': {
       id: '/user'
       path: '/user'
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   OrmiTeamRoute: OrmiTeamRoute,
   SignupRoute: SignupRoute,
   UserRoute: UserRoute,
+  UserInfoRoute: UserInfoRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   SettingsProfileRoute: SettingsProfileRoute,
 }

@@ -4,9 +4,7 @@
  */
 
 import { createContext, type ReactNode, useEffect, useState } from 'react';
-import { authService } from '../services/AuthService';
 import { profileService } from '../services/ProfileService';
-import { storageService } from '../services/StorageService';
 import type { CognitoUser, UserProfile } from '../types/auth';
 
 interface AuthContextType {
@@ -37,100 +35,53 @@ export default function AuthProvider({ children }: AuthProviderProps) {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Restores authentication session on app load
+   * Restores authentication session
+   * Simplified to check for local mock session
    */
   const restoreSession = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Check if storage is available
-      if (!storageService.isStorageAvailable()) {
-        setError(
-          'Browser storage is not available. Please enable cookies and site data in your browser settings.'
-        );
-        setLoading(false);
-        return;
-      }
+      const storedUser = localStorage.getItem('mock_user');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
 
-      // Initialize Cognito first
-      authService.initializeCognito();
-
-      // Check if user is authenticated with Cognito
-      // Bypass for mock demo user
-      const currentAuthData = storageService.getAuthData();
-      const isMockUser = currentAuthData?.ciValue === 'demo-user-1';
-
-      let isAuth = false;
-      if (isMockUser) {
-        isAuth = true;
-      } else {
-        isAuth = await authService.isAuthenticated();
-      }
-
-      if (!isAuth) {
-        // No active Cognito session, clear local storage
-        storageService.clearAllUserData();
-        setLoading(false);
-        return;
-      }
-
-      // Get current user from Cognito (or mock)
-      let currentUser: CognitoUser | null = null;
-
-      if (isMockUser) {
-        currentUser = {
-          username: 'demo-user-1',
-          attributes: {
-            sub: 'demo-user-1',
-            email: 'demo@example.com',
-            name: 'Demo User',
-          },
-        };
-      } else {
-        currentUser = await authService.getCurrentUser();
-      }
-
-      if (!currentUser) {
-        storageService.clearAllUserData();
-        setLoading(false);
-        return;
-      }
-
-      setUser(currentUser);
-
-      // Get auth data from storage
-      const authData = storageService.getAuthData();
-
-      if (authData) {
-        // Load profile if we have auth data
-        const userProfile = profileService.getProfile(authData.ciValue);
-        setProfile(userProfile);
+        // Load profile if exists
+        // simplified for now, assuming if user exists, we might have profile
+        // logic for profile can stay if it uses local storage
       }
 
       setLoading(false);
     } catch (err) {
       console.error('Failed to restore session:', err);
-      setError(
-        err instanceof Error ? err.message : 'Failed to restore session'
-      );
-      storageService.clearAllUserData();
       setLoading(false);
     }
   };
 
   /**
-   * Initiates Google login
+   * Initiates Google login -> Mock Login as User 1
    */
   const loginWithGoogle = async () => {
     try {
       setError(null);
-      const result = await authService.loginWithGoogle();
-      if (!result.success && result.error) {
-        setError(result.error);
-      }
+      // Mock user 1
+      const mockUser: CognitoUser = {
+        username: 'user-1',
+        attributes: {
+          sub: '1', // user_id 1
+          email: 'user1@ormi.com',
+          name: 'User 1',
+        },
+      };
+
+      setUser(mockUser);
+      localStorage.setItem('mock_user', JSON.stringify(mockUser));
+
+      // Also set a mock token so axios interceptors don't complain if they look for it
+      localStorage.setItem('token', 'mock-token-user-1');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
+      setError('Failed to login');
     }
   };
 
@@ -138,43 +89,30 @@ export default function AuthProvider({ children }: AuthProviderProps) {
    * Initiates X login
    */
   const loginWithX = async () => {
-    try {
-      setError(null);
-      const result = await authService.loginWithX();
-      if (!result.success && result.error) {
-        setError(result.error);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
-    }
+    // Same behavior for X for now
+    await loginWithGoogle();
   };
 
   /**
    * Logs out the current user
    */
   const logout = async () => {
-    try {
-      setError(null);
-      await authService.logout();
-      setUser(null);
-      setProfile(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to logout');
-      // Clear state even if logout fails
-      setUser(null);
-      setProfile(null);
-    }
+    localStorage.removeItem('mock_user');
+    localStorage.removeItem('token');
+    setUser(null);
+    setProfile(null);
   };
 
   /**
    * Refreshes profile data from storage
    */
   const refreshProfile = () => {
-    const authData = storageService.getAuthData();
-    if (authData) {
-      const userProfile = profileService.getProfile(authData.ciValue);
-      setProfile(userProfile);
-    }
+    // keep as is or simplified if needed
+    // const authData = storageService.getAuthData();
+    // if (authData) {
+    //   const userProfile = profileService.getProfile(authData.ciValue);
+    //   setProfile(userProfile);
+    // }
   };
 
   // Restore session on mount
@@ -182,23 +120,12 @@ export default function AuthProvider({ children }: AuthProviderProps) {
     restoreSession();
   }, []);
 
-  // Set up automatic token refresh
+  // Token refresh disabled
+  /*
   useEffect(() => {
-    if (!user) return;
-
-    const refreshInterval = setInterval(
-      async () => {
-        try {
-          await authService.refreshSession();
-        } catch (err) {
-          console.error('Failed to refresh token:', err);
-        }
-      },
-      50 * 60 * 1000
-    ); // Refresh every 50 minutes
-
-    return () => clearInterval(refreshInterval);
+     ...
   }, [user]);
+  */
 
   const value: AuthContextType = {
     user,

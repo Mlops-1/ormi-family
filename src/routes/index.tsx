@@ -107,7 +107,7 @@ function IndexPageContent() {
               coordinates={effectiveCoordinates}
               onLocationChange={handleLocationChange}
               onHelpClick={() => setShowOnboarding(true)}
-              onUserClick={() => navigate({ to: '/user' })}
+              onUserClick={() => navigate({ to: '/user-info' })}
               user={profile}
             />
 

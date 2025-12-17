@@ -1,5 +1,7 @@
+import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import AccessibilityInfo from '@/components/AccessibilityInfo';
+import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import {
@@ -21,6 +23,9 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
   const [direction, setDirection] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
+
+  // Analytics integration
+  const analytics = useAnalytics();
 
   // Motion value for dragging x position
   const x = useMotionValue(0);
@@ -46,14 +51,54 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     setIsExpanded(false);
   }, [currentIndex]);
 
-  const handleNext = () => {
+  const handleNext = async (
+    isSkip = false,
+    swipeDirection?: string,
+    swipeDistance?: number
+  ) => {
     if (items.length === 0) return;
+
+    // Track skip event if this was a skip action
+    if (isSkip && currentCard) {
+      try {
+        await analytics.trackSkip?.(
+          currentCard.content_id.toString(),
+          swipeDirection,
+          swipeDistance
+        );
+      } catch (err) {
+        console.error('Failed to track skip event', err);
+      }
+    }
+
     setDirection(1);
     setCurrentIndex((prev) => (prev + 1) % items.length);
   };
 
-  const triggerLike = () => {
+  // ... (inside component)
+
+  const triggerLike = async () => {
     setShowLikeOverlay(true);
+
+    // Add to favorites API
+    if (currentCard) {
+      try {
+        await FavoritesAPI.addFavorite({
+          user_id: 1,
+          content_id: currentCard.content_id,
+        });
+        console.log(`Added favorite: ${currentCard.content_id}`);
+
+        // Track analytics event for like
+        await analytics.trackLike?.(currentCard.content_id.toString(), {
+          score: currentCard.score,
+          category: currentCard.category_1,
+        });
+      } catch (err) {
+        console.error('Failed to add favorite', err);
+      }
+    }
+
     setTimeout(() => {
       setShowLikeOverlay(false);
       handleNext(); // Proceed to next card after like animation
@@ -67,11 +112,15 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     const swipeThreshold = 100; // Increased threshold slightly to prevent accidental likes
     const { x } = info.offset;
 
+    // Calculate swipe distance and direction for analytics
+    const swipeDistance = Math.abs(x);
+    const swipeDirection = x < 0 ? 'left' : 'right';
+
     // Reset x manualy if needed, but framer motion handles it on release usually.
     if (x < -swipeThreshold) {
-      handleNext(); // Pass (Swipe Left)
+      handleNext(true, swipeDirection, swipeDistance); // Pass (Swipe Left) - track as skip
     } else if (x > swipeThreshold) {
-      triggerLike(); // Like (Swipe Right)
+      triggerLike(); // Like (Swipe Right) - tracked in triggerLike
     }
   };
 
