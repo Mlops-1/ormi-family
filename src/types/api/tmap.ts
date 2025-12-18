@@ -35,6 +35,9 @@ export interface TmapPoiResponse {
             fullAddressRoad: string;
           }>;
         };
+        upperAddrName: string;
+        middleAddrName: string;
+        lowerAddrName: string;
       }>;
     };
   };

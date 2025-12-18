@@ -6,6 +6,7 @@ import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  type PanInfo,
   motion,
   useAnimation,
   useMotionValue,
@@ -78,7 +79,7 @@ export default function SpotDetailModal({
     setShowMap(true);
   };
 
-  const handleDragEnd = async (_: any, info: any) => {
+  const handleDragEnd = async (_: unknown, info: PanInfo) => {
     const offset = info.offset.x;
     const velocity = info.velocity.x;
 
@@ -346,7 +347,7 @@ function RouteMap({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Tmapv2.Map | null>(null);
-  const polylineRef = useRef<any>(null);
+  const polylineRef = useRef<Tmapv2.Polyline | null>(null);
 
   useEffect(() => {
     const mapElement = mapRef.current;

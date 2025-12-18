@@ -1,161 +1,97 @@
-import { SpotAPI } from '@/api/spot';
-import CategoryFilter from '@/components/CategoryFilter';
-import GeoLocation from '@/components/GeoLocation';
-import AppNotification from '@/components/Notification';
-import OnboardingOverlay from '@/components/OnboardingOverlay';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import SwipeableCardList from '@/components/SwipeableCardList';
-import WeatherWidget from '@/components/WeatherWidget';
-import { TEMP_USER_ID } from '@/constants/temp_user';
-import { useAuth } from '@/hooks/useAuth';
-import useGeoLocation from '@/hooks/useGeoLocation';
-import type { Coordinates } from '@/types/geo';
-import { SpotCategory, type SpotCategoryType } from '@/types/spot';
-import { useQuery } from '@tanstack/react-query';
+import motherAnimation from '@/assets/lotties/mother.json';
+import DogRiveAnimation from '@/components/DogRiveAnimation';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { motion } from 'framer-motion';
+import Lottie from 'lottie-react';
+import { useEffect } from 'react';
 
 export const Route = createFileRoute('/')({
-  component: IndexPage,
+  component: LandingPage,
 });
 
-function IndexPage() {
-  return (
-    <ProtectedRoute>
-      <IndexPageContent />
-    </ProtectedRoute>
-  );
-}
-
-function IndexPageContent() {
+function LandingPage() {
   const navigate = useNavigate();
-  const location = useGeoLocation();
-  const { profile } = useAuth();
-  const [manualLocation, setManualLocation] = useState<Coordinates | null>(
-    null
-  );
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [notifications, setNotifications] = useState<
-    Array<{ id: string; content: string }>
-  >([]);
 
-  const [selectedCategories, setSelectedCategories] = useState<
-    SpotCategoryType[]
-  >([
-    SpotCategory.TOURIST_SPOT,
-    SpotCategory.CAFE,
-    SpotCategory.RESTAURANT,
-    SpotCategory.ACCOMMODATION,
-  ]);
+  const handleModeSelect = (mode: 'toddler' | 'pet') => {
+    const root = window.document.documentElement;
 
-  const effectiveCoordinates = manualLocation || location.coordinates;
+    if (mode === 'toddler') {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    } else {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    }
 
-  const {
-    data: spots,
-    isError,
-    isLoading,
-  } = useQuery({
-    queryKey: ['spots', effectiveCoordinates, selectedCategories],
-    queryFn: async () => {
-      if (!effectiveCoordinates) return [];
-      const response = await SpotAPI.getRecommendedSpots({
-        user_id: TEMP_USER_ID,
-        mapx: effectiveCoordinates.lon,
-        mapy: effectiveCoordinates.lat,
-        filter_type: selectedCategories.length > 0 ? selectedCategories : null,
-      });
-      return response.data;
-    },
-    enabled: !!effectiveCoordinates,
-    retry: 1,
-  });
-
-  const handleLocationChange = (coords: Coordinates) => {
-    setManualLocation(coords); // This will trigger refetch via useEffect dependency in useQuery
-
-    // Optional: Notify user
-    const id = Date.now().toString();
-    setNotifications((prev) => [
-      ...prev,
-      { id, content: '위치가 변경되었습니다.' },
-    ]);
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 3000);
+    // Navigate to the main app (now at /map)
+    navigate({ to: '/map' });
   };
 
-  const listKey = `${effectiveCoordinates?.lat}-${effectiveCoordinates?.lon}-${selectedCategories.join('')}`;
+  useEffect(() => {
+    // Optional: Pre-load theme preference if needed
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start pt-4 px-4 pb-4 md:px-6 md:py-8 bg-jeju-light-background dark:bg-jeju-dark-background relative overflow-hidden text-jeju-light-text-primary dark:text-jeju-dark-text-primary">
-      <div className="text-center w-full max-w-lg md:max-w-2xl transition-all duration-300 flex flex-col h-full">
-        {/* Global Notification */}
-        {notifications.length > 0 && (
-          <AppNotification
-            items={notifications.map((n) => ({
-              type: 'info',
-              content: n.content,
-              id: n.id,
-              onDismiss: () =>
-                setNotifications((prev) => prev.filter((x) => x.id !== n.id)),
-            }))}
-          />
-        )}
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-orange-50 dark:bg-slate-900 transition-colors duration-500 overflow-hidden relative">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8 }}
+        className="text-center mb-12 z-10"
+      >
+        <h1 className="text-4xl md:text-5xl font-extrabold text-orange-600 dark:text-orange-400 mb-4 drop-shadow-sm font-display">
+          누구와 함께 하시나요?
+        </h1>
+        <p className="text-lg text-gray-600 dark:text-gray-300">
+          여행 파트너를 선택해주세요
+        </p>
+      </motion.div>
 
-        {/* Geo & Weather Section - Compact */}
-        {location.loaded && (
-          <div className="mb-2 animate-fade-in shrink-0">
-            {/* Header: Location & User Actions */}
-            <GeoLocation
-              coordinates={effectiveCoordinates}
-              onLocationChange={handleLocationChange}
-              onHelpClick={() => setShowOnboarding(true)}
-              onUserClick={() => navigate({ to: '/user-info' })}
-              user={profile}
+      <div className="flex flex-col md:flex-row gap-8 md:gap-12 w-full max-w-4xl px-6 z-10">
+        {/* Toddler Option */}
+        <motion.button
+          onClick={() => handleModeSelect('toddler')}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex-1 p-8 transition-all group relative flex flex-col items-center"
+        >
+          <div className="absolute inset-0 bg-linear-to-br from-orange-100/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
+          <div className="w-full h-64 md:h-80 mb-6 relative">
+            <Lottie
+              animationData={motherAnimation}
+              loop={true}
+              className="w-full h-full object-contain"
             />
-
-            {/* Weather Section */}
-            <div className="mt-1 w-full">
-              <WeatherWidget coordinates={effectiveCoordinates} />
-            </div>
-
-            {/* Category Filter - Compact */}
-            <div className="mt-2 mb-2">
-              <CategoryFilter
-                selected={selectedCategories}
-                onChange={setSelectedCategories}
-              />
-            </div>
           </div>
-        )}
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+            아이와 함께
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            유모차 접근성, 수유실 정보
+          </p>
+        </motion.button>
 
-        <OnboardingOverlay
-          isVisible={showOnboarding}
-          onClose={() => setShowOnboarding(false)}
-        />
-
-        <div className="flex-1 flex items-center justify-center min-h-0">
-          {isError || (spots && spots.length === 0) ? (
-            <div className="text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
-              현재 근처에 관광지가 없습니다.
-            </div>
-          ) : isLoading ? (
-            <div className="animate-pulse flex flex-col items-center justify-center space-y-4 w-full h-full">
-              <div className="w-full h-64 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-            </div>
-          ) : (
-            <SwipeableCardList
-              key={listKey}
-              items={spots || []}
-              userLocation={location.loaded ? effectiveCoordinates : undefined}
-            />
-          )}
-        </div>
+        {/* Pet Option */}
+        <motion.button
+          onClick={() => handleModeSelect('pet')}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex-1 p-8 transition-all group relative flex flex-col items-center"
+        >
+          {/* Rive Animation */}
+          <DogRiveAnimation />
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+            반려견과 함께
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            반려동물 동반 가능 장소
+          </p>
+        </motion.button>
       </div>
 
-      {/* (Removed local map button) */}
+      {/* Decorative Background Blobs */}
+      <div className="absolute top-0 left-0 w-96 h-96 bg-orange-300/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2 animate-pulse" />
+      <div className="absolute bottom-0 right-0 w-120 h-120 bg-indigo-300/20 rounded-full blur-3xl translate-x-1/3 translate-y-1/3 animate-pulse delay-700" />
     </div>
   );
 }

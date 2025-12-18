@@ -1,6 +1,6 @@
 import type { SpotCategoryType } from '@/types/spot';
 import { SpotCategory } from '@/types/spot';
-import { Bed, Check, Coffee, Landmark, Utensils } from 'lucide-react';
+import { Bed, Coffee, Landmark, Utensils } from 'lucide-react';
 
 interface Props {
   selected: SpotCategoryType[];
@@ -22,63 +22,44 @@ export default function CategoryFilter({ selected, onChange }: Props) {
     {
       id: SpotCategory.TOURIST_SPOT,
       label: '관광지',
-      icon: <Landmark size={18} />,
+      icon: <Landmark size={16} />,
     },
-    { id: SpotCategory.CAFE, label: '카페', icon: <Coffee size={18} /> },
+    { id: SpotCategory.CAFE, label: '카페', icon: <Coffee size={16} /> },
     {
       id: SpotCategory.RESTAURANT,
       label: '맛집',
-      icon: <Utensils size={18} />,
+      icon: <Utensils size={16} />,
     },
     {
       id: SpotCategory.ACCOMMODATION,
       label: '숙박',
-      icon: <Bed size={18} />,
+      icon: <Bed size={16} />,
     },
   ];
 
   return (
-    <div className="w-full px-4 mb-4">
-      <div className="grid grid-cols-4 gap-2">
-        {categories.map((cat) => {
-          const active = isSelected(cat.id);
-          return (
-            <button
-              key={cat.id}
-              onClick={() => toggle(cat.id)}
-              className={`
-                relative flex flex-col md:flex-row items-center justify-center gap-1.5 py-2 px-2 
-                rounded-xl transition-all duration-200 border
+    <div className="flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full p-1 shadow-xl border border-white/20 dark:border-slate-600 overflow-x-auto no-scrollbar max-w-full">
+      {categories.map((cat) => {
+        const active = isSelected(cat.id);
+        return (
+          <button
+            key={cat.id}
+            onClick={() => toggle(cat.id)}
+            className={`
+                flex items-center justify-center gap-1.5 px-4 py-2 
+                rounded-full transition-all duration-200 border text-sm font-bold whitespace-nowrap
                 ${
                   active
-                    ? 'bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-800 dark:border-gray-100'
-                    : 'bg-white dark:bg-slate-700 text-gray-500 dark:text-gray-400 border-gray-100 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-600'
+                    ? 'bg-gray-800 dark:bg-gray-100 text-white dark:text-gray-900 border-gray-800 dark:border-gray-100 shadow-sm'
+                    : 'bg-transparent text-gray-500 dark:text-gray-400 border-transparent hover:bg-black/5 dark:hover:bg-white/10'
                 }
               `}
-            >
-              <span
-                className={`${active ? 'text-ormi-pink-300 dark:text-ormi-pink-500' : 'text-gray-400 dark:text-gray-500'}`}
-              >
-                {cat.icon}
-              </span>
-              <span className="font-bold text-sm md:text-base">
-                {cat.label}
-              </span>
-
-              {/* Active Indicator Badge (Optional aesthetic detail) */}
-              {active && (
-                <div className="absolute top-2 right-2 hidden md:block">
-                  <Check
-                    size={14}
-                    className="text-white dark:text-gray-900"
-                    strokeWidth={3}
-                  />
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
+          >
+            <span>{cat.icon}</span>
+            <span>{cat.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

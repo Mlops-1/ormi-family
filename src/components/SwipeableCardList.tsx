@@ -5,42 +5,44 @@ import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
-import {
-  AnimatePresence,
-  motion,
-  useMotionValue,
-  useTransform,
-} from 'framer-motion';
-import { Heart } from 'lucide-react';
+import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
+import { Heart, Map as MapIcon } from 'lucide-react';
 import { useCallback, useState } from 'react';
 
 interface Props {
   items: SpotCard[];
   userLocation?: Coordinates;
+  onIndexChange?: (index: number) => void;
+  onToggleMapMode?: () => void;
+  onLoadMore?: () => void;
+  selectedIndex?: number; // Added to support jumping to specific card
 }
 
-export default function SwipeableCardList({ items, userLocation }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+export default function SwipeableCardList({
+  items,
+  userLocation,
+  onIndexChange,
+  onToggleMapMode,
+  onLoadMore,
+  selectedIndex = 0,
+}: Props) {
+  const [currentIndex, setCurrentIndex] = useState(selectedIndex);
+  const [prevSelectedIndex, setPrevSelectedIndex] = useState(selectedIndex);
   const [direction, setDirection] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Analytics integration
   const analytics = useAnalytics();
-
-  // Motion value for dragging x position
   const x = useMotionValue(0);
 
-  // Ghost Effect Transforms
-  // Opacity: Becomes fully opaque (1) quickly.
-  const ghostOpacity = useTransform(x, [-50, 0, 50], [1, 0, 1]);
-
-  // Rotation: Fans out symmetrically but closer to the main card (Trump style)
-  const ghostRotate = useTransform(x, [-300, 300], [-5, 5]);
-
-  // X Position: Follows card but lags very slightly (tight grouping)
-  const ghostX = useTransform(x, [-300, 300], [-40, 40]);
+  // Sync internal state when parent requests a specific index (derived state pattern)
+  if (selectedIndex !== undefined && selectedIndex !== prevSelectedIndex) {
+    setPrevSelectedIndex(selectedIndex);
+    if (items.length > 0 && selectedIndex !== currentIndex) {
+      setCurrentIndex(selectedIndex);
+    }
+  }
 
   const currentCard = items[currentIndex];
 
@@ -48,7 +50,6 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     async (isSkip = false, swipeDirection?: string, swipeDistance?: number) => {
       if (items.length === 0) return;
 
-      // Track skip event if this was a skip action
       if (isSkip && currentCard) {
         try {
           await analytics.trackSkip?.(
@@ -62,9 +63,18 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
       }
 
       setDirection(1);
-      setCurrentIndex((prev) => (prev + 1) % items.length);
+      setCurrentIndex((prev) => {
+        const next = (prev + 1) % items.length;
+        onIndexChange?.(next); // Notify parent (though parent also controls validIndex, this is circle)
+
+        // Infinite Scroll Trigger
+        if (items.length - next <= 3) {
+          onLoadMore?.();
+        }
+        return next;
+      });
     },
-    [items.length, currentCard, analytics]
+    [items.length, currentCard, analytics, onIndexChange, onLoadMore]
   );
 
   const triggerLike = useCallback(async () => {
@@ -72,16 +82,12 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     setIsProcessing(true);
     setShowLikeOverlay(true);
 
-    // Add to favorites API
     if (currentCard) {
       try {
         await FavoritesAPI.addFavorite({
           user_id: TEMP_USER_ID,
           content_id: currentCard.content_id,
         });
-        console.log(`Added favorite: ${currentCard.content_id}`);
-
-        // Track analytics event for like
         await analytics.trackLike?.(currentCard.content_id.toString(), {
           score: currentCard.score,
           category: currentCard.category_1,
@@ -93,7 +99,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
 
     setTimeout(() => {
       setShowLikeOverlay(false);
-      handleNext(); // Proceed to next card after like animation
+      handleNext();
       setIsProcessing(false);
     }, 1000);
   }, [currentCard, isProcessing, analytics, handleNext]);
@@ -101,29 +107,28 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
   const handleDragEnd = useCallback(
     (
       _: MouseEvent | TouchEvent | PointerEvent,
-      info: { offset: { x: number } }
+      info: { offset: { x: number; y: number } }
     ) => {
       if (isProcessing) return;
 
-      const swipeThreshold = 100; // Increased threshold slightly to prevent accidental likes
-      const { x } = info.offset;
+      const { x, y } = info.offset;
+      const swipeDistance = Math.sqrt(x * x + y * y);
 
-      // Calculate swipe distance and direction for analytics
-      const swipeDistance = Math.abs(x);
-      const swipeDirection = x < 0 ? 'left' : 'right';
+      const HORIZONTAL_THRESHOLD = 80;
+      const DIAGONAL_THRESHOLD = 40;
 
-      // Reset x manualy if needed, but framer motion handles it on release usually.
-      if (x < -swipeThreshold) {
-        // Swipe Left - Skip
-        // We set processing true briefly if we want to prevent rapid swipes,
-        // but usually skip is instant.
-        // Let's just call handleNext.
-        handleNext(true, swipeDirection, swipeDistance);
-      } else if (x > swipeThreshold) {
-        triggerLike(); // Like (Swipe Right)
+      if (x < -HORIZONTAL_THRESHOLD) {
+        handleNext(true, 'left', swipeDistance);
+      } else if (
+        x > HORIZONTAL_THRESHOLD &&
+        Math.abs(y) < HORIZONTAL_THRESHOLD
+      ) {
+        triggerLike();
+      } else if (x > DIAGONAL_THRESHOLD && y > DIAGONAL_THRESHOLD) {
+        onToggleMapMode?.();
       }
     },
-    [isProcessing, handleNext, triggerLike]
+    [isProcessing, handleNext, triggerLike, onToggleMapMode]
   );
 
   const variants = {
@@ -134,6 +139,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     }),
     center: {
       x: 0,
+      y: 0,
       opacity: 1,
       scale: 1,
       transition: { duration: 0.3 },
@@ -146,14 +152,13 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
     }),
   };
 
-  // Helper to calc distance (Haversine approx)
   const getDistance = (
     lat1: number,
     lon1: number,
     lat2: number,
     lon2: number
   ) => {
-    const R = 6371; // km
+    const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
@@ -168,14 +173,21 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
 
   if (items.length === 0) {
     return (
-      <div className="text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
-        표시할 장소가 없습니다.
+      <div className="flex flex-col items-center justify-center p-8 text-center bg-white/60 dark:bg-slate-800/60 backdrop-blur-md shadow-sm border border-jeju-light-divider dark:border-slate-600 h-64 w-full max-w-sm mx-auto">
+        <p className="text-gray-500 dark:text-gray-400">
+          표시할 장소가 없습니다.
+        </p>
       </div>
     );
   }
 
-  // Safe check
-  if (!currentCard) return null;
+  // Safety check if index is out of bounds due to filters
+  if (!currentCard) {
+    // Auto-correct could go here, or just return null
+    // But Effect should handle it next render if parent updates.
+    // If items exist but index is wrong, just show 0?
+    return null;
+  }
 
   const distance = userLocation
     ? getDistance(
@@ -188,11 +200,11 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
 
   return (
     <div className="w-full flex flex-col items-center h-full justify-center relative">
-      <p className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary text-sm mb-2 animate-pulse">
-        오른쪽으로 당겨보세요
-      </p>
+      <div className="flex items-center gap-1 text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary text-sm mb-2 animate-pulse">
+        <MapIcon size={14} />
+        <span>좌측 상단에서 아래로 당겨 지도 보기</span>
+      </div>
 
-      {/* Like Overlay - Modal style */}
       <AnimatePresence>
         {showLikeOverlay && (
           <motion.div
@@ -200,7 +212,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
-            onClick={(e) => e.stopPropagation()} // Block clicks
+            onClick={(e) => e.stopPropagation()}
           >
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
@@ -221,41 +233,27 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
       </AnimatePresence>
 
       <div className="relative w-full h-[550px] flex items-center justify-center overflow-visible perspective-1000">
-        {/* Ghost Trail Element - Visible during drag */}
-        <motion.div
-          style={{
-            x: ghostX,
-            rotate: ghostRotate,
-            opacity: ghostOpacity,
-          }}
-          // Using explicit hex color to match the 'AI Match' badge exactly if tailwind class mismatches
-          // But 'bg-jeju-light-primary' should be correct.
-          // The AI badge uses: 'bg-jeju-light-primary'
-          className="absolute top-0 w-full h-full bg-jeju-light-primary rounded-xl transform origin-bottom z-0"
-        />
-
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
-            key={currentCard.content_id} // Use unique ID
+            key={currentCard.content_id}
             custom={direction}
             variants={variants}
             initial="enter"
             animate="center"
             exit="exit"
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
+            drag
+            dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
             dragElastic={1}
             onDragEnd={handleDragEnd}
-            style={{ x }} // Bind x motion value
-            className="absolute w-full px-4 cursor-grab active:cursor-grabbing h-full z-10"
+            style={{ x }}
+            className="absolute w-full px-4 cursor-grab active:cursor-grabbing h-full z-10 font-sans"
           >
-            <div className="bg-white dark:bg-slate-700 rounded-xl shadow-2xl border border-jeju-light-divider dark:border-slate-600 h-full flex flex-col relative group">
-              {/* Card Image - Collapsible */}
+            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-none shadow-2xl border border-white/20 dark:border-slate-600 h-full flex flex-col relative group overflow-hidden">
               <motion.div
                 initial={false}
                 animate={{ height: isExpanded ? 0 : '50%' }}
                 transition={{ duration: 0.3 }}
-                className="w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden shrink-0 rounded-t-xl"
+                className="w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden shrink-0 rounded-none"
               >
                 <img
                   src={currentCard.first_image || fallbackImage}
@@ -263,32 +261,30 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                   draggable={false}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 pointer-events-none select-none"
                   onError={(e) => {
-                    e.currentTarget.onerror = null; // Prevent infinite loop
+                    e.currentTarget.onerror = null;
                     e.currentTarget.src = fallbackImage;
                   }}
                 />
-                <div className="absolute top-4 right-4 bg-jeju-light-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-bounce transform origin-right">
+                <div className="absolute top-4 right-4 bg-jeju-light-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-bounce origin-right">
                   AI 매칭 {Math.round(currentCard.score * 100)}%
                 </div>
-                {/* Gradient Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 h-24 bg-linear-to-t from-black/50 to-transparent opacity-60"></div>
               </motion.div>
 
-              {/* Content Area - Expands to fill flex-1 */}
-              <div className="p-6 flex flex-col flex-1 bg-white dark:bg-slate-700 relative min-h-0 rounded-b-xl overflow-visible">
+              <div className="p-6 flex flex-col flex-1 bg-transparent relative min-h-0 rounded-none overflow-visible">
                 <div className="flex justify-between items-start mb-1 shrink-0">
-                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white line-clamp-1 leading-tight">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white line-clamp-1 leading-tight drop-shadow-sm">
                     {currentCard.title}
                   </h3>
                 </div>
 
                 {distance && (
-                  <div className="flex items-center gap-1 text-sm text-ormi-pink-500 dark:text-ormi-pink-400 font-medium mb-3 shrink-0">
+                  <div className="flex items-center gap-1 text-sm text-ormi-pink-600 dark:text-ormi-pink-400 font-medium mb-3 shrink-0">
                     <span>📍 현 위치에서 {distance}km</span>
                   </div>
                 )}
 
-                <div className="text-gray-600 dark:text-gray-300 text-base flex flex-col min-h-0 flex-1">
+                <div className="text-gray-700 dark:text-gray-200 text-base flex flex-col min-h-0 flex-1">
                   <div className="flex-shrink-0">
                     <p className="mb-2 font-medium">{currentCard.addr_1}</p>
                     <p className="text-sm text-gray-500 line-clamp-2">
@@ -297,10 +293,9 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                     <AccessibilityInfo spot={currentCard} />
                   </div>
 
-                  {/* Reviews Section - Scrollable when expanded */}
                   {currentCard.reviews && currentCard.reviews.length > 0 && (
                     <div
-                      className={`mt-6 border-t border-jeju-light-divider dark:border-slate-600 pt-4 flex flex-col min-h-0 ${isExpanded ? 'flex-1 overflow-hidden' : ''}`}
+                      className={`mt-6 border-t border-gray-200 dark:border-slate-600 pt-4 flex flex-col min-h-0 ${isExpanded ? 'flex-1 overflow-hidden' : ''}`}
                     >
                       <div className="flex justify-between items-center mb-2 flex-shrink-0">
                         <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
@@ -312,7 +307,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                               e.stopPropagation();
                               setIsExpanded(!isExpanded);
                             }}
-                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1 shrink-0"
+                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1 shrink-0 bg-white/50 dark:bg-slate-700/50 rounded-full"
                           >
                             {isExpanded ? '접기' : '더보기'}
                           </button>
@@ -322,14 +317,13 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                       <div
                         className={`flex flex-col gap-3 ${isExpanded ? 'overflow-y-auto pr-1' : ''}`}
                       >
-                        {/* Render Reviews */}
                         {(isExpanded
                           ? currentCard.reviews
                           : [currentCard.reviews[0]]
-                        ).map((review, _idx) => (
+                        ).map((review) => (
                           <div
                             key={review.review_id}
-                            className="bg-gray-50 dark:bg-slate-800 p-3 rounded-lg text-sm border-t border-gray-100 dark:border-slate-700 shrink-0"
+                            className="bg-white/60 dark:bg-slate-800/60 p-3 rounded-none text-sm border border-gray-100 dark:border-slate-700 shrink-0 shadow-sm"
                           >
                             <div className="text-xs text-gray-400 mb-1">
                               {new Date(review.created_at).toLocaleDateString(
@@ -337,7 +331,7 @@ export default function SwipeableCardList({ items, userLocation }: Props) {
                                 { month: 'long', day: 'numeric' }
                               )}
                             </div>
-                            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+                            <p className="text-gray-700 dark:text-gray-200 leading-relaxed font-sans">
                               {review.detail}
                             </p>
                           </div>

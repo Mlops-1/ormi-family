@@ -13,6 +13,7 @@ import { Route as UserInfoRouteImport } from './routes/user-info'
 import { Route as UserRouteImport } from './routes/user'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as OrmiTeamRouteImport } from './routes/ormi-team'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as Landing2RouteImport } from './routes/landing2'
 import { Route as LandingRouteImport } from './routes/landing'
@@ -39,6 +40,11 @@ const SignupRoute = SignupRouteImport.update({
 const OrmiTeamRoute = OrmiTeamRouteImport.update({
   id: '/ormi-team',
   path: '/ormi-team',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/landing': typeof LandingRoute
   '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
+  '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
   '/signup': typeof SignupRoute
   '/user': typeof UserRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/landing2'
     | '/login'
+    | '/map'
     | '/ormi-team'
     | '/signup'
     | '/user'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/landing2'
     | '/login'
+    | '/map'
     | '/ormi-team'
     | '/signup'
     | '/user'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/landing'
     | '/landing2'
     | '/login'
+    | '/map'
     | '/ormi-team'
     | '/signup'
     | '/user'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   LandingRoute: typeof LandingRoute
   Landing2Route: typeof Landing2Route
   LoginRoute: typeof LoginRoute
+  MapRoute: typeof MapRoute
   OrmiTeamRoute: typeof OrmiTeamRoute
   SignupRoute: typeof SignupRoute
   UserRoute: typeof UserRoute
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/ormi-team'
       fullPath: '/ormi-team'
       preLoaderRoute: typeof OrmiTeamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   LandingRoute: LandingRoute,
   Landing2Route: Landing2Route,
   LoginRoute: LoginRoute,
+  MapRoute: MapRoute,
   OrmiTeamRoute: OrmiTeamRoute,
   SignupRoute: SignupRoute,
   UserRoute: UserRoute,

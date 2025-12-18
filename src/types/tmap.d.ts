@@ -10,9 +10,13 @@ declare global {
       constructor(element: HTMLElement | string, options?: MapOptions);
       setCenter(center: LatLng): void;
       setZoom(zoom: number): void;
-      addListener(eventType: string, callback: (evt: any) => void): void;
+      addListener(eventType: string, callback: (evt: MapEvent) => void): void;
       destroy(): void;
       fitBounds(bounds: LatLngBounds): void;
+      panTo(latlng: LatLng): void;
+      setOptions(options: Partial<MapOptions>): void;
+      setScrollwheel(enabled: boolean): void;
+      setDraggable(enabled: boolean): void;
     }
 
     interface MapOptions {
@@ -22,6 +26,7 @@ declare global {
       zoom?: number;
       zoomControl?: boolean;
       scrollwheel?: boolean;
+      draggable?: boolean;
     }
 
     class LatLng {
@@ -40,7 +45,9 @@ declare global {
       setMap(map: Map | null): void;
       setPosition(position: LatLng): void;
       getPosition(): LatLng;
-      addListener(eventType: string, callback: (evt: any) => void): void;
+      addListener(eventType: string, callback: (evt: MapEvent) => void): void;
+      setIconHTML(html: string): void;
+      setZIndex(index: number): void; // Adding it to type def, but I'll be careful using it.
     }
 
     interface MarkerOptions {
@@ -52,6 +59,7 @@ declare global {
       title?: string;
       label?: string; // HTML content or text for label
       offset?: Point;
+      zIndex?: number;
     }
 
     class Point {
@@ -75,6 +83,7 @@ declare global {
     // Simplistic event object for Tmap
     interface MapEvent {
       latLng: LatLng;
+      [key: string]: unknown;
     }
   }
 }

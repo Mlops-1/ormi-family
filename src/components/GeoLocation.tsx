@@ -4,11 +4,13 @@ import type {
   TmapReverseGeocodeResponse,
 } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
+import { createOrangeMarker } from '@/utils/marker';
 import { Icon } from '@cloudscape-design/components';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { MapPin, Search, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   coordinates: Coordinates;
@@ -19,6 +21,14 @@ interface Props {
     nickname?: string;
     profileImage?: string | null;
   } | null;
+  compact?: boolean;
+}
+
+interface PoiSuggestion {
+  name: string;
+  lat: number;
+  lon: number;
+  address: string;
 }
 
 export default function GeoLocation({
@@ -27,9 +37,9 @@ export default function GeoLocation({
   onHelpClick,
   onUserClick,
   user,
+  compact = false,
 }: Props) {
   const { isLoaded } = useTmapScript();
-  const [address, setAddress] = useState<string>('위치 확인 중...');
   const [isMapOpen, setIsMapOpen] = useState(false);
 
   // Map related states
@@ -39,7 +49,10 @@ export default function GeoLocation({
 
   // Search related states
   const [searchQuery, setSearchQuery] = useState('');
-  const [mapAddress, setMapAddress] = useState(''); // Address shown in map modal
+  const [mapAddress, setMapAddress] = useState('');
+  const [suggestions, setSuggestions] = useState<PoiSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY;
 
@@ -73,50 +86,50 @@ export default function GeoLocation({
       }
     },
     enabled: !!APP_KEY,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Update local address state when query data changes
-  useEffect(() => {
-    if (addressData) setAddress(addressData);
-  }, [addressData]);
+  const fetchTmapAddress = useCallback(
+    async (lat: number, lon: number) => {
+      if (!APP_KEY) return 'API Key Missing';
+      try {
+        const res = await axios.get<TmapReverseGeocodeResponse>(
+          `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${lat}&lon=${lon}&addressType=A02&appKey=${APP_KEY}`
+        );
+        const info = res.data.addressInfo;
+        if (info) {
+          const city = (info.city_do || '')
+            .replace(/제주특별자치도\s*/g, '')
+            .trim();
+          const gu = info.gu_gun || '';
+          const dong = info.legalDong || info.adminDong || '';
 
-  const fetchTmapAddress = async (lat: number, lon: number) => {
-    if (!APP_KEY) return 'API Key Missing';
-    try {
-      const res = await axios.get<TmapReverseGeocodeResponse>(
-        `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${lat}&lon=${lon}&addressType=A02&appKey=${APP_KEY}`
-      );
-      const info = res.data.addressInfo;
-      if (info) {
-        const city = (info.city_do || '')
-          .replace(/제주특별자치도\s*/g, '')
-          .trim();
-        const gu = info.gu_gun || '';
-        const dong = info.legalDong || info.adminDong || '';
-
-        if (gu && dong) return `${gu} ${dong}`;
-        if (city && gu) return `${city} ${gu} ${dong}`;
-        return (info.fullAddress || '주소 미상')
-          .replace(/제주특별자치도\s*/g, '')
-          .trim();
+          if (gu && dong) return `${gu} ${dong}`;
+          if (city && gu) return `${city} ${gu} ${dong}`;
+          return (info.fullAddress || '주소 미상')
+            .replace(/제주특별자치도\s*/g, '')
+            .trim();
+        }
+        return '주소 찾기 실패';
+      } catch (e) {
+        console.error('Tmap Reverse Geocoding Error:', e);
+        return '위치 확인 불가';
       }
-      return '주소 찾기 실패';
-    } catch (e) {
-      console.error('Tmap Reverse Geocoding Error:', e);
-      return '위치 확인 불가';
-    }
-  };
+    },
+    [APP_KEY]
+  );
 
-  const checkMarkerPosition = async (latLng: Tmapv2.LatLng) => {
-    const lat = latLng.lat();
-    const lon = latLng.lng();
-    console.log('New Coords (Marker):', { lat, lon });
-    const addr = await fetchTmapAddress(lat, lon);
-    setMapAddress(addr);
-  };
+  const checkMarkerPosition = useCallback(
+    async (latLng: Tmapv2.LatLng) => {
+      const lat = latLng.lat();
+      const lon = latLng.lng();
+      const addr = await fetchTmapAddress(lat, lon);
+      setMapAddress(addr);
+    },
+    [fetchTmapAddress]
+  );
 
-  // 2. Map Initialization when Modal opens
+  // Map Initialization
   useEffect(() => {
     if (isMapOpen && isLoaded && mapRef.current && !mapInstance.current) {
       if (!window.Tmapv2) return;
@@ -127,9 +140,6 @@ export default function GeoLocation({
           coordinates.lon
         );
 
-        // Generate unique ID for map div if needed, but ref is safer
-        // Tmap usually needs an ID string, but some versions accept element.
-        // Let's ensure the div has an ID.
         if (!mapRef.current.id) {
           mapRef.current.id = 'tmap_container_' + Date.now();
         }
@@ -144,30 +154,23 @@ export default function GeoLocation({
         });
         mapInstance.current = map;
 
+        // Use Orange Marker
         const marker = new window.Tmapv2.Marker({
           position: latlng,
           map: map,
           draggable: true,
+          iconHTML: createOrangeMarker(true), // Using active orange marker
         });
         markerInstance.current = marker;
 
-        // Initial address in modal
-        // Use the cached query data if available and matches, otherwise fetch
-        if (
-          coordinates.lat === latlng.lat() &&
-          coordinates.lon === latlng.lng() &&
-          addressData
-        ) {
-          setMapAddress(addressData);
-        } else {
-          fetchTmapAddress(coordinates.lat, coordinates.lon).then(
-            setMapAddress
-          );
-        }
+        // Initialize marker position logic moved to handleOpenMap to avoid side effects
+        // But if coordinates change while open, we might need to update?
+        // For now, assuming map opens at coordinates.
+        // We still need to fetch if addressData is missing but that's handled by queries usually.
 
-        // Events
-        map.addListener('click', (evt: any) => {
-          // evt.latLng is Tmapv2.LatLng
+        // Just ensure marker is at center (already done strictly above via latlng)
+
+        map.addListener('click', (evt: { latLng: Tmapv2.LatLng }) => {
           const newPos = evt.latLng;
           marker.setPosition(newPos);
           checkMarkerPosition(newPos);
@@ -181,43 +184,107 @@ export default function GeoLocation({
         console.error('Tmap Init Error:', e);
       }
     } else if (!isMapOpen && mapInstance.current) {
-      // Cleanup
-      try {
-        // mapInstance.current.destroy(); // Tmap destroy method
-      } catch (e) {
-        /* ignore */
-      }
       mapInstance.current = null;
       markerInstance.current = null;
     }
-  }, [isMapOpen, isLoaded]); // Re-init if opened
+  }, [
+    isMapOpen,
+    isLoaded,
+    coordinates.lat,
+    coordinates.lon,
+    addressData,
+    fetchTmapAddress,
+    checkMarkerPosition,
+  ]);
+
+  // Autocomplete Search
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (value.trim().length > 1) {
+      debounceRef.current = setTimeout(async () => {
+        if (!APP_KEY) return;
+        try {
+          const res = await axios.get<TmapPoiResponse>(
+            `https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(value)}&resCoordType=WGS84GEO&reqCoordType=WGS84GEO&count=5&appKey=${APP_KEY}`
+          );
+          const pois = res.data.searchPoiInfo?.pois?.poi || [];
+          const newSuggestions = pois.map((poi) => ({
+            name: poi.name,
+            lat: parseFloat(poi.noorLat),
+            lon: parseFloat(poi.noorLon),
+            address:
+              poi.newAddressList?.newAddress?.[0]?.fullAddressRoad ||
+              poi.upperAddrName +
+                ' ' +
+                poi.middleAddrName +
+                ' ' +
+                poi.lowerAddrName,
+          }));
+          setSuggestions(newSuggestions);
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error('Autocomplete Error:', error);
+        }
+      }, 300); // 300ms debounce
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion: PoiSuggestion) => {
+    if (window.Tmapv2 && mapInstance.current && markerInstance.current) {
+      const newPos = new window.Tmapv2.LatLng(suggestion.lat, suggestion.lon);
+      mapInstance.current.setCenter(newPos);
+      markerInstance.current.setPosition(newPos);
+      checkMarkerPosition(newPos);
+    }
+    setSearchQuery(suggestion.name);
+    setShowSuggestions(false);
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim() || !APP_KEY) return;
-
-    try {
-      const res = await axios.get<TmapPoiResponse>(
-        `https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(searchQuery)}&resCoordType=WGS84GEO&reqCoordType=WGS84GEO&count=1&appKey=${APP_KEY}`
-      );
-
-      const pois = res.data.searchPoiInfo?.pois?.poi;
-      if (pois && pois.length > 0) {
-        const poi = pois[0];
-        const lat = parseFloat(poi.noorLat);
-        const lon = parseFloat(poi.noorLon);
-
-        if (window.Tmapv2 && mapInstance.current && markerInstance.current) {
-          const newPos = new window.Tmapv2.LatLng(lat, lon);
-          mapInstance.current.setCenter(newPos);
-          markerInstance.current.setPosition(newPos);
-          checkMarkerPosition(newPos);
+    // ... existing search logic if needed as fallback, but suggestions are primary
+    // Re-use autocomplete logic effectively or just pick top 1
+    if (suggestions.length > 0) {
+      handleSelectSuggestion(suggestions[0]);
+    } else {
+      // Perform a fresh search if suggestions were closed or empty
+      try {
+        const res = await axios.get<TmapPoiResponse>(
+          `https://apis.openapi.sk.com/tmap/pois?version=1&searchKeyword=${encodeURIComponent(searchQuery)}&resCoordType=WGS84GEO&reqCoordType=WGS84GEO&count=1&appKey=${APP_KEY}`
+        );
+        const pois = res.data.searchPoiInfo?.pois?.poi;
+        if (pois && pois.length > 0) {
+          const poi = pois[0];
+          const lat = parseFloat(poi.noorLat);
+          const lon = parseFloat(poi.noorLon);
+          if (window.Tmapv2 && mapInstance.current && markerInstance.current) {
+            const newPos = new window.Tmapv2.LatLng(lat, lon);
+            mapInstance.current.setCenter(newPos);
+            markerInstance.current.setPosition(newPos);
+            checkMarkerPosition(newPos);
+          }
+        } else {
+          alert('검색 결과가 없습니다.');
         }
-      } else {
-        alert('검색 결과가 없습니다.');
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error('Search Error:', e);
-      alert('검색 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleOpenMap = () => {
+    setIsMapOpen(true);
+    if (addressData) {
+      setMapAddress(addressData);
+    } else {
+      fetchTmapAddress(coordinates.lat, coordinates.lon).then(setMapAddress);
     }
   };
 
@@ -231,107 +298,158 @@ export default function GeoLocation({
 
   return (
     <>
-      <div className="w-full flex justify-between items-center px-4 py-2">
+      <div
+        className={`flex items-center ${compact ? 'gap-1' : 'w-full justify-between gap-2 px-4 py-2'}`}
+      >
         {/* Location Button */}
         <button
-          onClick={() => setIsMapOpen(true)}
-          className="flex items-center gap-2 bg-white/80 dark:bg-slate-700/80 px-4 py-2 rounded-full shadow-sm border border-ormi-green-200 dark:border-slate-600 active:scale-95 transition-transform cursor-pointer"
+          onClick={handleOpenMap}
+          className={`flex items-center gap-2 ${compact ? 'px-2 py-1' : 'bg-white/80 dark:bg-slate-700/80 px-4 py-2 shadow-sm border border-ormi-green-200 dark:border-slate-600'} rounded-full active:scale-95 transition-transform cursor-pointer`}
         >
           <span className="text-ormi-ember-500 dark:text-ormi-ember-400">
-            <MapPin size={18} />
+            <MapPin size={compact ? 16 : 18} />
           </span>
-          <span className="font-bold text-gray-800 dark:text-gray-100 text-sm md:text-base">
-            {address}
+          <span
+            className={`font-bold text-gray-800 dark:text-gray-100 ${compact ? 'text-sm' : 'text-sm md:text-base'}`}
+          >
+            {addressData || '위치 확인 중...'}
           </span>
-          <span className="text-gray-400">
-            <Icon name="angle-down" />
-          </span>
+          {!compact && (
+            <span className="text-gray-400">
+              <Icon name="angle-down" />
+            </span>
+          )}
         </button>
 
         {/* Right Buttons */}
-        <div className="flex gap-2 items-center">
-          {user?.nickname && (
+        <div className="flex gap-1 items-center">
+          {user?.nickname && !compact && (
             <span className="hidden md:block text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-slate-700/80 px-3 py-2 rounded-full shadow-sm">
               {user.nickname}님
             </span>
           )}
           <button
             onClick={onUserClick}
-            className="p-2 bg-white/80 dark:bg-slate-700/80 rounded-full shadow-sm hover:bg-ormi-pink-50 dark:hover:bg-slate-600 border border-transparent hover:border-ormi-pink-200 transition-colors cursor-pointer text-gray-700 dark:text-gray-200"
+            className={`p-2 rounded-full hover:bg-ormi-pink-50 dark:hover:bg-slate-600 transition-colors cursor-pointer text-gray-700 dark:text-gray-200 ${compact ? '' : 'bg-white/80 dark:bg-slate-700/80 shadow-sm border border-transparent hover:border-ormi-pink-200'}`}
           >
-            <Icon name="user-profile" />
+            {user?.profileImage ? (
+              <img
+                src={user.profileImage}
+                alt="User"
+                className="w-6 h-6 rounded-full"
+              />
+            ) : (
+              <Icon name="user-profile" />
+            )}
           </button>
-          <button
-            onClick={onHelpClick}
-            className="p-2 bg-white/80 dark:bg-slate-700/80 rounded-full shadow-sm hover:bg-ormi-pink-50 dark:hover:bg-slate-600 border border-transparent hover:border-ormi-pink-200 transition-colors cursor-pointer text-gray-700 dark:text-gray-200"
-          >
-            <Icon name="status-info" />
-          </button>
+          {!compact && (
+            <button
+              onClick={onHelpClick}
+              className="p-2 bg-white/80 dark:bg-slate-700/80 rounded-full shadow-sm hover:bg-ormi-pink-50 dark:hover:bg-slate-600 border border-transparent hover:border-ormi-pink-200 transition-colors cursor-pointer text-gray-700 dark:text-gray-200"
+            >
+              <Icon name="status-info" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Map Modal */}
-      {isMapOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 flex justify-between items-center bg-gray-50 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-gray-800">위치 설정</h3>
-              <button
-                onClick={() => setIsMapOpen(false)}
-                className="p-1 hover:bg-gray-200 rounded-full transition-colors"
-                aria-label="닫기"
-              >
-                <X size={24} className="text-gray-500" />
-              </button>
-            </div>
-
-            {/* Search Bar */}
-            <div className="p-4 border-b border-gray-100 flex gap-2">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="장소 검색 (예: 서울시청)"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ormi-green-400"
-              />
-              <button
-                onClick={handleSearch}
-                className="bg-ormi-green-500 text-white px-4 py-2 rounded-lg hover:bg-ormi-green-600 transition-colors flex items-center gap-1"
-              >
-                <Search size={18} />
-              </button>
-            </div>
-
-            <div className="relative w-full h-80 md:h-96 bg-gray-100">
-              {!isLoaded ? (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-                  지도 로딩 중...
-                  {!APP_KEY && (
-                    <span className="text-xs text-red-500 block">
-                      API Key 누락
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <div ref={mapRef} className="w-full h-full" />
-              )}
-            </div>
-
-            <div className="p-4 bg-gray-50 flex flex-col gap-3">
-              <div className="text-center text-gray-700 font-medium">
-                {mapAddress || '지도를 움직여 위치를 선택하세요'}
+      {/* Map Modal - Portalled to body to avoid clipping */}
+      {isMapOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white dark:bg-slate-800 w-full max-w-lg rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-gray-200 dark:border-slate-700">
+              <div className="p-4 flex justify-between items-center bg-gray-50 dark:bg-slate-900 border-b border-gray-100 dark:border-slate-700">
+                <h3 className="font-bold text-lg text-gray-800 dark:text-white">
+                  위치 설정
+                </h3>
+                <button
+                  onClick={() => setIsMapOpen(false)}
+                  className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-full transition-colors"
+                  aria-label="닫기"
+                >
+                  <X size={24} className="text-gray-500 dark:text-gray-400" />
+                </button>
               </div>
-              <button
-                onClick={handleConfirmLocation}
-                className="w-full bg-ormi-ember-500 text-white py-3 rounded-xl font-bold hover:bg-ormi-ember-600 transition-colors shadow-md"
-              >
-                이 위치로 설정
-              </button>
+
+              {/* Search Bar with Autocomplete */}
+              <div className="relative z-50">
+                <div className="p-4 border-b border-gray-100 dark:border-slate-700 flex gap-2 bg-white dark:bg-slate-800">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    onFocus={() => {
+                      if (suggestions.length > 0) setShowSuggestions(true);
+                    }}
+                    placeholder="장소 검색 (예: 제주공항)"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-ormi-green-400 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400"
+                  />
+                  <button
+                    onClick={handleSearch}
+                    className="bg-ormi-green-500 text-white px-4 py-2 rounded-lg hover:bg-ormi-green-600 transition-colors flex items-center gap-1 shrink-0"
+                  >
+                    <Search size={18} />
+                  </button>
+                </div>
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border-b border-l border-r border-gray-100 dark:border-slate-700 shadow-lg max-h-60 overflow-y-auto z-50">
+                    {suggestions.map((item, index) => (
+                      <div
+                        key={index}
+                        onClick={() => handleSelectSuggestion(item)}
+                        className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 cursor-pointer border-b border-gray-100 dark:border-slate-700 last:border-none"
+                      >
+                        <div className="font-medium text-gray-800 dark:text-gray-200">
+                          {item.name}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {item.address}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Hint for search */}
+              <div className="px-4 py-1 bg-gray-50 dark:bg-slate-900 text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                <MapPin size={12} className="inline" />
+                마커를 끌어 출발위치를 지정해주세요.
+              </div>
+
+              <div className="relative w-full h-80 md:h-96 bg-gray-100 dark:bg-slate-900">
+                {!isLoaded ? (
+                  <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                    지도 로딩 중...
+                    {!APP_KEY && (
+                      <span className="text-xs text-red-500 block">
+                        API Key 누락
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div ref={mapRef} className="w-full h-full" />
+                )}
+              </div>
+
+              <div className="p-4 bg-gray-50 dark:bg-slate-900 flex flex-col gap-3 border-t border-gray-100 dark:border-slate-700">
+                <div className="text-center text-gray-700 dark:text-gray-300 font-medium break-keep">
+                  {mapAddress || '지도를 움직여 위치를 선택하세요'}
+                </div>
+                <button
+                  onClick={handleConfirmLocation}
+                  className="w-full bg-ormi-ember-500 text-white py-3 rounded-xl font-bold hover:bg-ormi-ember-600 transition-colors shadow-md"
+                >
+                  이 위치로 설정
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
