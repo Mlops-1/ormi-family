@@ -7,7 +7,7 @@ import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
 import { Heart, Map as MapIcon } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 interface Props {
   items: SpotCard[];
@@ -33,6 +33,9 @@ export default function SwipeableCardList({
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Ref for immediate locking to prevent rapid-fire requests
+  const isProcessingRef = useRef(false);
+
   const analytics = useAnalytics();
   const x = useMotionValue(0);
 
@@ -46,8 +49,22 @@ export default function SwipeableCardList({
 
   const currentCard = items[currentIndex];
 
+  /* Refactored handleNext to accept direction */
   const handleNext = useCallback(
-    async (isSkip = false, swipeDirection?: string, swipeDistance?: number) => {
+    async (
+      isSkip = false,
+      swipeDirection: string = 'right',
+      swipeDistance: number = 0,
+      dirValue: number = 1
+    ) => {
+      // Release skip lock after a short delay
+      if (isSkip) {
+        setTimeout(() => {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+        }, 300);
+      }
+
       if (items.length === 0) return;
 
       if (isSkip && currentCard) {
@@ -58,14 +75,14 @@ export default function SwipeableCardList({
             swipeDistance
           );
         } catch (err) {
-          console.error('Failed to track skip event', err);
+          // console.error('Failed to track skip event', err);
         }
       }
 
-      setDirection(1);
+      setDirection(dirValue);
       setCurrentIndex((prev) => {
         const next = (prev + 1) % items.length;
-        onIndexChange?.(next); // Notify parent (though parent also controls validIndex, this is circle)
+        onIndexChange?.(next); // Notify parent
 
         // Infinite Scroll Trigger
         if (items.length - next <= 3) {
@@ -78,8 +95,13 @@ export default function SwipeableCardList({
   );
 
   const triggerLike = useCallback(async () => {
-    if (isProcessing) return;
+    // Double Guard: Check both state and ref
+    if (isProcessing || isProcessingRef.current) return;
+
+    // Lock immediately
     setIsProcessing(true);
+    isProcessingRef.current = true;
+
     setShowLikeOverlay(true);
 
     if (currentCard) {
@@ -92,6 +114,8 @@ export default function SwipeableCardList({
           score: currentCard.score,
           category: currentCard.category_1,
         });
+        // Dispatch event
+        window.dispatchEvent(new Event('refreshFavorites'));
       } catch (err) {
         console.error('Failed to add favorite', err);
       }
@@ -99,9 +123,16 @@ export default function SwipeableCardList({
 
     setTimeout(() => {
       setShowLikeOverlay(false);
-      handleNext();
-      setIsProcessing(false);
-    }, 1000);
+      // Direction 1 (Positive) for Like Animation (Right Swipe / Left Pulled)
+      // Like is now Right Swipe (x > 0), so dirValue = 1
+      handleNext(false, 'right', 0, 1);
+
+      // Delay unlocking to ensure animation clears
+      setTimeout(() => {
+        setIsProcessing(false);
+        isProcessingRef.current = false;
+      }, 500);
+    }, 800);
   }, [currentCard, isProcessing, analytics, handleNext]);
 
   const handleDragEnd = useCallback(
@@ -109,23 +140,30 @@ export default function SwipeableCardList({
       _: MouseEvent | TouchEvent | PointerEvent,
       info: { offset: { x: number; y: number } }
     ) => {
-      if (isProcessing) return;
+      // Check lock
+      if (isProcessing || isProcessingRef.current) return;
 
       const { x, y } = info.offset;
       const swipeDistance = Math.sqrt(x * x + y * y);
 
       const HORIZONTAL_THRESHOLD = 80;
-      const DIAGONAL_THRESHOLD = 40;
+      const PULL_DOWN_THRESHOLD = 100;
 
-      if (x < -HORIZONTAL_THRESHOLD) {
-        handleNext(true, 'left', swipeDistance);
-      } else if (
-        x > HORIZONTAL_THRESHOLD &&
-        Math.abs(y) < HORIZONTAL_THRESHOLD
-      ) {
-        triggerLike();
-      } else if (x > DIAGONAL_THRESHOLD && y > DIAGONAL_THRESHOLD) {
+      // Logic Swap Reverted:
+      // Right Swipe (x > 80): Like
+      // Left Swipe (x < -80): Skip
+      // Down (> 100): Map Mode
+
+      if (y > PULL_DOWN_THRESHOLD && Math.abs(x) < HORIZONTAL_THRESHOLD) {
         onToggleMapMode?.();
+      } else if (x > HORIZONTAL_THRESHOLD) {
+        // Right Swipe -> Like
+        triggerLike();
+      } else if (x < -HORIZONTAL_THRESHOLD) {
+        // Left Swipe -> Skip
+        isProcessingRef.current = true; // Lock for skip too
+        setIsProcessing(true);
+        handleNext(true, 'left', swipeDistance, -1);
       }
     },
     [isProcessing, handleNext, triggerLike, onToggleMapMode]
@@ -140,16 +178,31 @@ export default function SwipeableCardList({
     center: {
       x: 0,
       y: 0,
+      rotate: 0,
       opacity: 1,
       scale: 1,
       transition: { duration: 0.3 },
     },
-    exit: (direction: number) => ({
-      x: direction > 0 ? -300 : 300,
-      opacity: 0,
-      scale: 0.8,
-      transition: { duration: 0.3 },
-    }),
+    exit: (direction: number) => {
+      if (direction > 0) {
+        // LIKE: Suck into bottom logic (Z-axis Spin)
+        return {
+          x: 0,
+          y: 500, // Drop down
+          rotate: 720, // Full Z-axis spin (2 turns)
+          scale: 0, // Shrink to zero
+          opacity: 0, // Fade out
+          transition: { duration: 0.8, ease: 'easeInOut' },
+        };
+      }
+      // SKIP: Fly Left
+      return {
+        x: -500,
+        opacity: 0,
+        scale: 0.8,
+        transition: { duration: 0.3 },
+      };
+    },
   };
 
   const getDistance = (
@@ -202,7 +255,7 @@ export default function SwipeableCardList({
     <div className="w-full flex flex-col items-center h-full justify-center relative">
       <div className="flex items-center gap-1 text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary text-sm mb-2 animate-pulse">
         <MapIcon size={14} />
-        <span>좌측 상단에서 아래로 당겨 지도 보기</span>
+        <span>카드를 아래로 당겨 지도 보기</span>
       </div>
 
       <AnimatePresence>

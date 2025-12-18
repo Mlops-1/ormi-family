@@ -1,39 +1,13 @@
 import { useFilterStore } from '@/store/filterStore';
-import type { SpotCategoryType } from '@/types/spot';
-import { SpotCategory } from '@/types/spot';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bed, Coffee, Landmark, LayoutGrid, Utensils, X } from 'lucide-react';
+import { LayoutGrid, X } from 'lucide-react';
 
 // Remove Props
 interface Props {
   className?: string; // Add className prop for positioning
 }
 
-const OPTION_CONFIG: Record<
-  SpotCategoryType,
-  { label: string; icon: React.ReactNode; color: string }
-> = {
-  [SpotCategory.TOURIST_SPOT]: {
-    label: '관광지',
-    icon: <Landmark size={20} />,
-    color: 'bg-green-500',
-  },
-  [SpotCategory.CAFE]: {
-    label: '카페',
-    icon: <Coffee size={20} />,
-    color: 'bg-amber-700',
-  },
-  [SpotCategory.RESTAURANT]: {
-    label: '맛집',
-    icon: <Utensils size={20} />,
-    color: 'bg-orange-500',
-  },
-  [SpotCategory.ACCOMMODATION]: {
-    label: '숙박',
-    icon: <Bed size={20} />,
-    color: 'bg-blue-600',
-  },
-};
+import { CATEGORY_CONFIG as OPTION_CONFIG } from '@/constants/filterConfig';
 
 export default function CategoryFilter({ className = '' }: Props) {
   const {

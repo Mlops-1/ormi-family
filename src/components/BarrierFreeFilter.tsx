@@ -1,76 +1,13 @@
 import { useFilterStore } from '@/store/filterStore';
 import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Accessibility,
-  Baby,
-  ChevronUp,
-  Dog,
-  Info,
-  ParkingCircle,
-  Waypoints,
-  X,
-} from 'lucide-react';
+import { Baby, Dog, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-export type AccessibilityType =
-  | 'wheelchair'
-  | 'stroller'
-  | 'lactation_room'
-  | 'baby_spare_chair'
-  | 'help_dog'
-  | 'route'
-  | 'elevator'
-  | 'parking';
+import { BARRIER_CONFIG as OPTION_CONFIG } from '@/constants/filterConfig';
 
-// Remove Props interface as we use store now
 interface Props {
-  className?: string; // Keep className for positioning override
+  className?: string;
 }
-
-const OPTION_CONFIG: Record<
-  AccessibilityType,
-  { label: string; icon: React.ReactNode; color: string }
-> = {
-  wheelchair: {
-    label: '휠체어',
-    icon: <Accessibility size={20} />,
-    color: 'bg-blue-500',
-  },
-  stroller: {
-    label: '유모차',
-    icon: <Baby size={20} />,
-    color: 'bg-pink-500',
-  },
-  lactation_room: {
-    label: '수유실',
-    icon: <Baby size={20} />,
-    color: 'bg-yellow-500',
-  },
-  baby_spare_chair: {
-    label: '유아의자',
-    icon: <Info size={20} />,
-    color: 'bg-green-500',
-  },
-  help_dog: {
-    label: '보조견',
-    icon: <Dog size={20} />,
-    color: 'bg-orange-500',
-  },
-  route: {
-    label: '대중교통',
-    icon: <Waypoints size={20} />,
-    color: 'bg-purple-500',
-  },
-  elevator: {
-    label: '엘리베이터',
-    icon: <ChevronUp size={20} />,
-    color: 'bg-indigo-500',
-  },
-  parking: {
-    label: '주차장',
-    icon: <ParkingCircle size={20} />,
-    color: 'bg-slate-500',
-  },
-};
 
 export default function BarrierFreeFilter({ className = '' }: Props) {
   const {
@@ -80,6 +17,21 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
     isBarrierOpen,
     setBarrierOpen,
   } = useFilterStore();
+
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div className={`relative z-50 ${className}`}>
@@ -91,8 +43,10 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
       >
         {isBarrierOpen ? (
           <X size={20} />
+        ) : isDarkMode ? (
+          <Dog size={20} />
         ) : (
-          <Accessibility className="" size={20} />
+          <Baby size={20} />
         )}
         {selectedBarrierIds.length > 0 && !isBarrierOpen && (
           <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">

@@ -17,7 +17,7 @@ function RootComponent() {
 
   return (
     /* Outer Layout: Responsive container */
-    <div className="min-h-screen w-full flex justify-center bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <div className="min-h-screen w-full flex justify-center bg-gray-900 transition-colors duration-300">
       {/* <ThemeToggle /> */}
 
       {/* App Container - Simple max-width responsive layout */}

@@ -1,14 +1,17 @@
 import { SpotAPI } from '@/api/spot';
+import { fetchRoute } from '@/api/tmapRoute';
 import BackgroundMap from '@/components/BackgroundMap';
-import BarrierFreeFilter, {
-  type AccessibilityType,
-} from '@/components/BarrierFreeFilter';
+import BarrierFreeFilter from '@/components/BarrierFreeFilter';
 import CategoryFilter from '@/components/CategoryFilter';
+import FavoritesBottomSheet from '@/components/FavoritesBottomSheet';
 import GeoLocation from '@/components/GeoLocation';
+import MapSideFilters from '@/components/MapSideFilters';
 import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import RouteMenu, { type RouteMenuOption } from '@/components/RouteMenu';
+import RouteNavigation, { type RoutePoint } from '@/components/RouteNavigation';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
@@ -16,7 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import { useFilterStore } from '@/store/filterStore';
 import type { Coordinates } from '@/types/geo';
-import type { SpotCard } from '@/types/spot';
+import type { AccessibilityType, SpotCard } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -46,6 +49,13 @@ function MapPageContent() {
   const [notifications, setNotifications] = useState<
     Array<{ id: string; content: string }>
   >([]);
+
+  // Routing State
+  const [showRouteMenu, setShowRouteMenu] = useState(false);
+  const [startPoint, setStartPoint] = useState<RoutePoint | null>(null);
+  const [endPoint, setEndPoint] = useState<RoutePoint | null>(null);
+  const [wayPoints, setWayPoints] = useState<RoutePoint[]>([]);
+  const [routePath, setRoutePath] = useState<Coordinates[] | null>(null);
 
   // Infinite Scroll State
   const [allSpots, setAllSpots] = useState<SpotCard[]>([]);
@@ -164,9 +174,120 @@ function MapPageContent() {
 
   const handleMarkerClick = (index: number) => {
     setFocusedSpotIndex(index);
-    // Explicitly confirm map mode exit is requested AFTER index update
-    setIsMapMode(false);
+    if (!isMapMode) {
+      // If in card mode, clicking marker just focuses and maybe opens map mode?
+      // User requirement: "1. Current: ... returns to card."
+      // So if I am in MapMode, clicking marker should open menu.
+      // If I am NOT in MapMode, I am in Card Mode. Clicking marker usually means swiping to that card.
+      setIsMapMode(false);
+      return;
+    }
+
+    // In Map Mode -> Open Menu
+    setShowRouteMenu(true);
   };
+
+  // Route Logic
+  const getSelectedSpotPoint = (): RoutePoint | null => {
+    if (!displaySpots[focusedSpotIndex]) return null;
+    const spot = displaySpots[focusedSpotIndex];
+    return {
+      id: spot.content_id.toString(),
+      name: spot.title,
+      type: 'waypoint', // Default type, will change based on assignment
+      coordinates: { lat: spot.lat, lon: spot.lon },
+    };
+  };
+
+  const handleRouteOptionSelect = async (option: RouteMenuOption) => {
+    const selectedSpot = getSelectedSpotPoint();
+    if (!selectedSpot) return;
+
+    setShowRouteMenu(false);
+
+    if (option === 'fast') {
+      // Fast Route: User Loc -> Selected Spot
+      if (!location.loaded || !location.coordinates) {
+        alert('현재 위치를 불러올 수 없어 빠른 길찾기를 사용할 수 없습니다.');
+        return;
+      }
+      const start: RoutePoint = {
+        id: 'user-loc',
+        name: '내 위치',
+        type: 'start',
+        coordinates: location.coordinates,
+      };
+      const end: RoutePoint = {
+        ...selectedSpot,
+        type: 'end',
+      };
+      setStartPoint(start);
+      setEndPoint(end);
+      setWayPoints([]);
+      // Auto fetch triggered by effect or we call explicitly?
+      // Better to trigger explicitly to be sure.
+      calculateRoute(start, end, []);
+    } else if (option === 'start') {
+      setStartPoint({ ...selectedSpot, type: 'start' });
+    } else if (option === 'end') {
+      setEndPoint({ ...selectedSpot, type: 'end' });
+    } else if (option === 'waypoint') {
+      setWayPoints((prev) => [
+        ...prev,
+        { ...selectedSpot, type: 'waypoint', id: `wp-${Date.now()}` },
+      ]);
+    }
+  };
+
+  const calculateRoute = async (
+    start: RoutePoint,
+    end: RoutePoint,
+    ways: RoutePoint[]
+  ) => {
+    try {
+      const passList = ways
+        .map((w) => `${w.coordinates.lon},${w.coordinates.lat}`)
+        .join('_');
+
+      const res = await fetchRoute({
+        startX: start.coordinates.lon,
+        startY: start.coordinates.lat,
+        endX: end.coordinates.lon,
+        endY: end.coordinates.lat,
+        passList: passList || undefined,
+      });
+
+      const path: Coordinates[] = [];
+      res.features.forEach((feature) => {
+        if (feature.geometry.type === 'LineString') {
+          const coords = feature.geometry.coordinates as [number, number][];
+          coords.forEach((c) => path.push({ lon: c[0], lat: c[1] }));
+        }
+      });
+      setRoutePath(path);
+    } catch (e) {
+      console.error('Route Error:', e);
+      alert('길찾기 경로를 계산할 수 없습니다.');
+    }
+  };
+
+  // Re-calculate when points change (Requirement 9)
+  useEffect(() => {
+    if (startPoint && endPoint) {
+      calculateRoute(startPoint, endPoint, wayPoints);
+    } else {
+      setRoutePath(null);
+    }
+  }, [startPoint, endPoint, wayPoints]);
+
+  const handleResetRoute = () => {
+    setStartPoint(null);
+    setEndPoint(null);
+    setWayPoints([]);
+    setRoutePath(null);
+  };
+
+  const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
 
   return (
     <div className="relative w-full h-dvh overflow-hidden bg-gray-100 dark:bg-gray-900">
@@ -182,6 +303,11 @@ function MapPageContent() {
         onMarkerClick={handleMarkerClick}
         userLocation={location.coordinates}
         centerLocation={effectiveCoordinates}
+        // Route Props
+        routeStart={startPoint?.coordinates}
+        routeEnd={endPoint?.coordinates}
+        routeWaypoints={wayPoints.map((w) => w.coordinates)}
+        routePath={routePath || undefined}
       />
 
       {/* Map Mode Return Button */}
@@ -228,7 +354,11 @@ function MapPageContent() {
 
           {/* Floating Top Navigation */}
           <div
-            className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-transform duration-500 ease-in-out ${isMapMode ? '-translate-y-48' : 'translate-y-0'}`}
+            className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
+              isMapMode && !isRoutingMode // If routing, show routing header instead
+                ? '-translate-y-full opacity-0'
+                : 'translate-y-0 opacity-100'
+            }`}
           >
             {/* Centered Top Nav Info */}
             <div className="pointer-events-auto flex-1 min-w-0 max-w-3xl mx-auto z-40">
@@ -271,6 +401,57 @@ function MapPageContent() {
               </div>
             </div>
           </div>
+
+          <MapSideFilters isVisible={isMapMode && !isRoutingMode} />
+
+          {/* Route Navigation Header (Overlay) */}
+          {isRoutingMode && isMapMode && (
+            <div className="absolute top-4 left-0 right-0 z-50 px-4 animate-slide-down pointer-events-auto">
+              <RouteNavigation
+                startPoint={startPoint}
+                endPoint={endPoint}
+                wayPoints={wayPoints}
+                onWaypointsChange={setWayPoints}
+                onRemovePoint={(id) => {
+                  if (startPoint?.id === id) setStartPoint(null);
+                  else if (endPoint?.id === id) setEndPoint(null);
+                  else setWayPoints((w) => w.filter((p) => p.id !== id));
+                }}
+                onSearch={() =>
+                  startPoint &&
+                  endPoint &&
+                  calculateRoute(startPoint, endPoint, wayPoints)
+                }
+                onReset={handleResetRoute}
+              />
+            </div>
+          )}
+
+          {/* Route Menu (Bottom Sheet/Popup) */}
+          <AnimatePresence>
+            {showRouteMenu && isMapMode && (
+              <motion.div
+                initial={{ opacity: 0, y: 100 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 100 }}
+                className="absolute bottom-24 left-4 right-4 z-50 pointer-events-auto"
+              >
+                <RouteMenu
+                  onSelect={handleRouteOptionSelect}
+                  hasStart={!!startPoint}
+                  hasEnd={!!endPoint}
+                />
+                <button
+                  onClick={() => setShowRouteMenu(false)}
+                  className="mt-2 w-full bg-white/90 dark:bg-slate-800/90 py-3 rounded-xl shadow-lg font-bold text-gray-600 dark:text-gray-300 backdrop-blur-sm"
+                >
+                  취소
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <FavoritesBottomSheet />
 
           <OnboardingOverlay
             isVisible={showOnboarding}

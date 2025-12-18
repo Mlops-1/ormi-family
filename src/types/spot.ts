@@ -7,6 +7,16 @@ export const SpotCategory = {
 
 export type SpotCategoryType = (typeof SpotCategory)[keyof typeof SpotCategory];
 
+export type AccessibilityType =
+  | 'wheelchair'
+  | 'stroller'
+  | 'lactation_room'
+  | 'baby_spare_chair'
+  | 'help_dog'
+  | 'route'
+  | 'elevator'
+  | 'parking';
+
 export interface SpotRequest {
   user_id: number;
   mapy: number; // lat

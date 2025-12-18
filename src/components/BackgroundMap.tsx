@@ -6,7 +6,7 @@ import type { SpotCard } from '@/types/spot';
 import { createOrangeMarker, createSpotMarker } from '@/utils/marker';
 import Lottie from 'lottie-react';
 import { useEffect, useRef } from 'react';
-import { createRoot, Root } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 
 interface Props {
   spots: SpotCard[];
@@ -16,6 +16,10 @@ interface Props {
   onMarkerClick?: (index: number) => void;
   userLocation?: Coordinates | null;
   centerLocation?: Coordinates;
+  routeStart?: Coordinates;
+  routeEnd?: Coordinates;
+  routeWaypoints?: Coordinates[];
+  routePath?: Coordinates[];
 }
 
 // Extend Marker locally for React Root attachment
@@ -31,6 +35,10 @@ export default function BackgroundMap({
   onMarkerClick,
   userLocation,
   centerLocation,
+  routeStart,
+  routeEnd,
+  routeWaypoints,
+  routePath,
 }: Props) {
   const { isLoaded } = useTmapScript();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -42,6 +50,12 @@ export default function BackgroundMap({
   const spotMarkersRef = useRef<Tmapv2.Marker[]>([]);
   const userMarkerRef = useRef<Tmapv2.Marker | null>(null);
   const referenceMarkerRef = useRef<Tmapv2.Marker | null>(null);
+
+  // Route Refs
+  const routeStartMarkerRef = useRef<Tmapv2.Marker | null>(null);
+  const routeEndMarkerRef = useRef<Tmapv2.Marker | null>(null);
+  const routeWaypointMarkersRef = useRef<Tmapv2.Marker[]>([]);
+  const routePolylineRef = useRef<Tmapv2.Polyline | null>(null);
 
   const onMapInteractionRef = useRef(onMapInteraction);
   const onMarkerClickRef = useRef(onMarkerClick);
@@ -253,6 +267,130 @@ export default function BackgroundMap({
       }
     }
   }, [centerLocation, userLocation, isLoaded]);
+
+  // Route Visualization
+  useEffect(() => {
+    if (!mapInstance.current || !window.Tmapv2) return;
+
+    const map = mapInstance.current;
+
+    // Helper to create simple colored marker
+    const createColorMarker = (
+      lat: number,
+      lon: number,
+      color: string,
+      label?: string
+    ) => {
+      return new window.Tmapv2.Marker({
+        position: new window.Tmapv2.LatLng(lat, lon),
+        map: map,
+        iconHTML: `
+          <div style="position: relative; display: flex; flex-col; gap: 4px; align-items: center; justify-content: center;">
+             <div style="
+                width: 32px; 
+                height: 32px; 
+                background-color: ${color}; 
+                border: 2px solid white; 
+                border-radius: 50%; 
+                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-weight: bold;
+                font-size: 14px;
+             ">
+             ${label || ''}
+             </div>
+             <div style="
+                width: 0; 
+                height: 0; 
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 8px solid ${color};
+                margin-top: -6px;
+             "></div>
+          </div>
+        `,
+        zIndex: 200,
+        offset: new window.Tmapv2.Point(16, 38), // Center bottom approximate
+      });
+    };
+
+    // 1. Draw Path
+    if (routePolylineRef.current) {
+      routePolylineRef.current.setMap(null);
+      routePolylineRef.current = null;
+    }
+
+    if (routePath && routePath.length > 0) {
+      const path = routePath.map((p) => new window.Tmapv2.LatLng(p.lat, p.lon));
+      routePolylineRef.current = new window.Tmapv2.Polyline({
+        path: path,
+        strokeColor: '#FF6B00', // Main Orange
+        strokeWeight: 6,
+        strokeOpacity: 0.9,
+        map: map,
+      });
+
+      // Fit bounds to show route
+      const bounds = new window.Tmapv2.LatLngBounds();
+      path.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds);
+    }
+
+    // 2. Start Marker
+    if (routeStartMarkerRef.current) {
+      routeStartMarkerRef.current.setMap(null);
+      routeStartMarkerRef.current = null;
+    }
+    if (routeStart) {
+      routeStartMarkerRef.current = createColorMarker(
+        routeStart.lat,
+        routeStart.lon,
+        '#3B82F6', // Blue
+        '출'
+      );
+      // Bring map center to start if just setting start? No, fitBounds usually handles it if path exists.
+    }
+
+    // 3. End Marker
+    if (routeEndMarkerRef.current) {
+      routeEndMarkerRef.current.setMap(null);
+      routeEndMarkerRef.current = null;
+    }
+    if (routeEnd) {
+      routeEndMarkerRef.current = createColorMarker(
+        routeEnd.lat,
+        routeEnd.lon,
+        '#EF4444', // Red
+        '도'
+      );
+    }
+
+    // 4. Waypoint Markers
+    routeWaypointMarkersRef.current.forEach((m) => m.setMap(null));
+    routeWaypointMarkersRef.current = [];
+    if (routeWaypoints) {
+      routeWaypoints.forEach((wp, idx) => {
+        const marker = createColorMarker(
+          wp.lat,
+          wp.lon,
+          '#10B981', // Green
+          (idx + 1).toString()
+        );
+        routeWaypointMarkersRef.current.push(marker);
+      });
+    }
+  }, [
+    routeStart,
+    routeEnd,
+    routeWaypoints,
+    routePath,
+    isLoaded,
+    // Excluding routeStart/End/Ways logic from re-creation if simpler, but they are objects.
+    // Safe to re-run on change.
+  ]);
 
   return (
     <div

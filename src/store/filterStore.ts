@@ -1,5 +1,4 @@
-import type { AccessibilityType } from '@/components/BarrierFreeFilter';
-import type { SpotCategoryType } from '@/types/spot';
+import type { AccessibilityType, SpotCategoryType } from '@/types/spot';
 import { SpotCategory } from '@/types/spot';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -56,17 +55,8 @@ export const useFilterStore = create<FilterStore>()(
             ? state.selectedBarrierIds.filter((i) => i !== id)
             : [...state.selectedBarrierIds, id];
 
-          // If selecting, move to top
-          let newOrder = state.barrierOrderedIds;
-          if (!isSelected) {
-            // If it WAS NOT selected, we remain keeping it at top?
-            // User logic: "When filter is activated... moves to top".
-            newOrder = [id, ...state.barrierOrderedIds.filter((x) => x !== id)];
-          }
-
           return {
             selectedBarrierIds: newSelected,
-            barrierOrderedIds: newOrder,
           };
         }),
       isBarrierOpen: false,
@@ -89,18 +79,8 @@ export const useFilterStore = create<FilterStore>()(
             ? state.selectedCategoryIds.filter((i) => i !== id)
             : [...state.selectedCategoryIds, id];
 
-          // Reorder on select
-          let newOrder = state.categoryOrderedIds;
-          if (!isSelected) {
-            newOrder = [
-              id,
-              ...state.categoryOrderedIds.filter((x) => x !== id),
-            ];
-          }
-
           return {
             selectedCategoryIds: newSelected,
-            categoryOrderedIds: newOrder,
           };
         }),
       isCategoryOpen: true,
