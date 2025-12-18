@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, MapPin, Navigation, X } from 'lucide-react';
+import { GripVertical, LocateFixed, MapPin, Navigation, X } from 'lucide-react';
 
 export interface RoutePoint {
   id: string; // unique id for dnd
@@ -33,6 +33,8 @@ interface Props {
   onRemovePoint: (id: string) => void;
   onSearch: () => void;
   onReset: () => void;
+  isDogMode?: boolean;
+  onSetStartToMyLoc?: () => void;
 }
 
 interface SortableItemProps {
@@ -95,6 +97,8 @@ export default function RouteNavigation({
   onRemovePoint,
   onSearch,
   onReset,
+  isDogMode = false,
+  onSetStartToMyLoc,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -114,7 +118,7 @@ export default function RouteNavigation({
   };
 
   return (
-    <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200 overflow-hidden flex flex-col w-full max-w-sm mx-auto pointer-events-auto">
+    <div className="bg-white/95 backdrop-blur-md rounded-[32px] shadow-xl border border-gray-100 overflow-hidden flex flex-col w-full max-w-3xl mx-auto pointer-events-auto">
       {/* Start Point */}
       <div className="flex items-center gap-3 p-3 border-b border-gray-100">
         <MapPin size={20} className="text-gray-400 shrink-0" />
@@ -127,16 +131,37 @@ export default function RouteNavigation({
               {startPoint.name}
             </div>
           ) : (
-            <div className="text-gray-400 text-sm">출발지를 선택하세요</div>
+            <div className="flex items-center justify-between w-full">
+              <span className="text-gray-400 text-sm">출발지를 선택하세요</span>
+              {onSetStartToMyLoc && (
+                <button
+                  onClick={onSetStartToMyLoc}
+                  className="flex items-center gap-1 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200 transition-colors"
+                >
+                  <LocateFixed size={12} />내 위치
+                </button>
+              )}
+            </div>
           )}
         </div>
         {startPoint && (
-          <button
-            onClick={() => onRemovePoint(startPoint.id)}
-            className="p-1 text-gray-400 hover:text-red-500"
-          >
-            <X size={18} />
-          </button>
+          <div className="flex items-center gap-1">
+            {onSetStartToMyLoc && startPoint.id !== 'user-loc' && (
+              <button
+                onClick={onSetStartToMyLoc}
+                className="p-1 text-blue-400 hover:text-blue-600 mr-1"
+                title="내 위치로 설정"
+              >
+                <LocateFixed size={16} />
+              </button>
+            )}
+            <button
+              onClick={() => onRemovePoint(startPoint.id)}
+              className="p-1 text-gray-400 hover:text-red-500"
+            >
+              <X size={18} />
+            </button>
+          </div>
         )}
       </div>
 
@@ -199,10 +224,14 @@ export default function RouteNavigation({
         <button
           onClick={onSearch}
           disabled={!startPoint || !endPoint}
-          className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          className={`flex items-center gap-1.5 px-4 py-2 text-white rounded-full text-sm font-bold shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors ${
+            isDogMode
+              ? 'bg-ormi-green-600 hover:bg-ormi-green-700'
+              : 'bg-orange-500 hover:bg-orange-600'
+          }`}
         >
           <Navigation size={16} />
-          길찾기
+          Tmap 안내
         </button>
       </div>
     </div>

@@ -230,6 +230,21 @@ function MapPageContent() {
     } else if (option === 'start') {
       setStartPoint({ ...selectedSpot, type: 'start' });
     } else if (option === 'end') {
+      // Smart Logic: If End exists, push old End to Waypoints (Extend Trip)
+      if (endPoint) {
+        const oldEndAsWaypoint: RoutePoint = {
+          ...endPoint,
+          type: 'waypoint',
+          id: `wp-from-end-${Date.now()}`,
+        };
+        // Avoid duplicates if user clicks same spot
+        if (
+          endPoint.coordinates.lat !== selectedSpot.coordinates.lat ||
+          endPoint.coordinates.lon !== selectedSpot.coordinates.lon
+        ) {
+          setWayPoints((prev) => [...prev, oldEndAsWaypoint]);
+        }
+      }
       setEndPoint({ ...selectedSpot, type: 'end' });
     } else if (option === 'waypoint') {
       setWayPoints((prev) => [
@@ -246,6 +261,16 @@ function MapPageContent() {
   ) => {
     try {
       const passList = ways
+        .filter((w) => {
+          // Filter out waypoints that are effectively start or end to prevent loops
+          const isStart =
+            Math.abs(w.coordinates.lat - start.coordinates.lat) < 0.0001 &&
+            Math.abs(w.coordinates.lon - start.coordinates.lon) < 0.0001;
+          const isEnd =
+            Math.abs(w.coordinates.lat - end.coordinates.lat) < 0.0001 &&
+            Math.abs(w.coordinates.lon - end.coordinates.lon) < 0.0001;
+          return !isStart && !isEnd;
+        })
         .map((w) => `${w.coordinates.lon},${w.coordinates.lat}`)
         .join('_');
 
@@ -308,16 +333,21 @@ function MapPageContent() {
         routeEnd={endPoint?.coordinates}
         routeWaypoints={wayPoints.map((w) => w.coordinates)}
         routePath={routePath || undefined}
+        markerTheme={
+          document.documentElement.classList.contains('dark')
+            ? 'green'
+            : 'orange'
+        }
       />
 
       {/* Map Mode Return Button */}
       {isMapMode && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-auto">
+        <div className="absolute bottom-6 right-6 z-50 pointer-events-auto">
           <button
             onClick={() => setIsMapMode(false)}
-            className="bg-black/80 text-white px-6 py-3 rounded-full font-bold shadow-lg backdrop-blur flex items-center gap-2 hover:scale-105 transition-transform"
+            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl shadow-lg transition-transform active:scale-95 bg-orange-500 dark:bg-ormi-green-600 text-white"
           >
-            카드로 돌아가기
+            <span className="font-bold text-sm">스와이프 모드로 변경</span>
           </button>
         </div>
       )}
@@ -355,7 +385,7 @@ function MapPageContent() {
           {/* Floating Top Navigation */}
           <div
             className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
-              isMapMode && !isRoutingMode // If routing, show routing header instead
+              isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
             }`}
@@ -367,42 +397,48 @@ function MapPageContent() {
                   <CategoryFilter />
                 </div>
 
-                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                {(!isRoutingMode || !isMapMode) && (
+                  <>
+                    <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
-                  <GeoLocation
-                    coordinates={effectiveCoordinates}
-                    onLocationChange={handleLocationChange}
-                    onHelpClick={() => setShowOnboarding(true)}
-                    onUserClick={() => navigate({ to: '/user-info' })}
-                    user={profile}
-                    compact={true}
-                    hideUserIcon={true} // Passing new prop
-                  />
-                </div>
+                    <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
+                      <GeoLocation
+                        coordinates={effectiveCoordinates}
+                        onLocationChange={handleLocationChange}
+                        onHelpClick={() => setShowOnboarding(true)}
+                        onUserClick={() => navigate({ to: '/user-info' })}
+                        user={profile}
+                        compact={true}
+                        hideUserIcon={true} // Passing new prop
+                      />
+                    </div>
 
-                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                    <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                <div className="shrink-0 flex justify-center">
-                  <WeatherWidget coordinates={effectiveCoordinates} />
-                </div>
+                    <div className="shrink-0 flex justify-center">
+                      <WeatherWidget coordinates={effectiveCoordinates} />
+                    </div>
 
-                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                    <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                <div className="shrink-0">
-                  <ModeToggle />
-                </div>
+                    <div className="shrink-0">
+                      <ModeToggle />
+                    </div>
 
-                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                    <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                  </>
+                )}
 
-                <div className="pointer-events-auto shrink-0 z-50">
+                <div className="pointer-events-auto shrink-0 z-50 ml-auto">
                   <BarrierFreeFilter />
                 </div>
               </div>
             </div>
           </div>
 
-          <MapSideFilters isVisible={isMapMode && !isRoutingMode} />
+          <MapSideFilters
+            isVisible={isMapMode && !isRoutingMode && !showRouteMenu}
+          />
 
           {/* Route Navigation Header (Overlay) */}
           {isRoutingMode && isMapMode && (
@@ -412,16 +448,45 @@ function MapPageContent() {
                 endPoint={endPoint}
                 wayPoints={wayPoints}
                 onWaypointsChange={setWayPoints}
+                isDogMode={document.documentElement.classList.contains('dark')}
+                onSetStartToMyLoc={() => {
+                  if (location.coordinates) {
+                    setStartPoint({
+                      id: 'user-loc',
+                      name: '내 위치',
+                      type: 'start',
+                      coordinates: location.coordinates,
+                    });
+                  } else {
+                    alert('현재 위치를 가져올 수 없습니다.');
+                  }
+                }}
                 onRemovePoint={(id) => {
                   if (startPoint?.id === id) setStartPoint(null);
                   else if (endPoint?.id === id) setEndPoint(null);
                   else setWayPoints((w) => w.filter((p) => p.id !== id));
                 }}
-                onSearch={() =>
-                  startPoint &&
-                  endPoint &&
-                  calculateRoute(startPoint, endPoint, wayPoints)
-                }
+                onSearch={() => {
+                  if (!endPoint) return;
+                  const { name, coordinates } = endPoint;
+                  // Tmap Deep Link Scheme
+                  // Using simplistic URL scheme for mobile/web fallback
+                  // tmap://route?goalname={name}&goalx={lon}&goaly={lat}
+                  const url = `tmap://route?goalname=${encodeURIComponent(
+                    name
+                  )}&goalx=${coordinates.lon}&goaly=${coordinates.lat}`;
+
+                  // Fallback to store or web if needed (basic implementation)
+                  window.location.href = url;
+
+                  // For better UX, arguably we could verify installation, but for this web app,
+                  // triggering the scheme is standard.
+                  // If failing, maybe open a new window to Tmap web?
+                  // Let's safe-guard with a timeout fallback or just allow browser handling.
+                  setTimeout(() => {
+                    // Fallback logic if needed, e.g. App Store
+                  }, 500);
+                }}
                 onReset={handleResetRoute}
               />
             </div>
@@ -443,7 +508,7 @@ function MapPageContent() {
                 />
                 <button
                   onClick={() => setShowRouteMenu(false)}
-                  className="mt-2 w-full bg-white/90 dark:bg-slate-800/90 py-3 rounded-xl shadow-lg font-bold text-gray-600 dark:text-gray-300 backdrop-blur-sm"
+                  className="mt-4 w-full bg-white dark:bg-white py-3 rounded-xl shadow-lg font-bold text-gray-600 dark:text-gray-800 border border-gray-100 dark:border-gray-200"
                 >
                   취소
                 </button>

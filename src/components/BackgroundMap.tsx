@@ -1,5 +1,6 @@
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import strollerAnimation from '@/assets/lotties/baby_care.json';
+import walkingDogAnimation from '@/assets/lotties/walking_dog.json';
 import useTmapScript from '@/hooks/useTmapScript';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
@@ -20,12 +21,21 @@ interface Props {
   routeEnd?: Coordinates;
   routeWaypoints?: Coordinates[];
   routePath?: Coordinates[];
+  markerTheme?: 'orange' | 'green';
 }
 
 // Extend Marker locally for React Root attachment
 interface CustomMarker extends Tmapv2.Marker {
   _reactRoot?: Root;
 }
+
+const createSimsMarker = (theme: 'orange' | 'green') => {
+  return `
+    <div style="padding: 20px;">
+      <div class="sims-plumbob ${theme}"></div>
+    </div>
+  `;
+};
 
 export default function BackgroundMap({
   spots,
@@ -37,8 +47,9 @@ export default function BackgroundMap({
   centerLocation,
   routeStart,
   routeEnd,
-  routeWaypoints,
+  routeWaypoints = [],
   routePath,
+  markerTheme = 'orange',
 }: Props) {
   const { isLoaded } = useTmapScript();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -180,61 +191,93 @@ export default function BackgroundMap({
       return;
     }
 
+    const isDog = markerTheme === 'green';
+    const markerId = 'val-user-marker'; // Fixed ID for stability
+
+    // Style Configuration
+    const animationData = isDog ? walkingDogAnimation : strollerAnimation;
+    const filterStyle = isDog
+      ? 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white)' // Dog: White halo only
+      : 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)'; // Stroller: Strong outline
+
+    // Size Logic: Container is effectively 100px (set below).
+    // Dog: Full size (scale 1.2 or just 100%).
+    // Stroller: Original size (approx 70px) -> Scale down to ~70%.
+    const contentStyle = {
+      width: isDog ? '100%' : '70%',
+      height: isDog ? '100%' : '70%',
+      margin: '0 auto', // Center
+      filter: filterStyle,
+      transition: 'all 0.3s ease', // Smooth transition
+    };
+
+    const renderContent = (root: Root) => {
+      root.render(
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div style={contentStyle}>
+            <Lottie
+              animationData={animationData}
+              loop={true}
+              autoplay={true}
+              style={{ width: '100%', height: '100%' }}
+            />
+          </div>
+        </div>
+      );
+    };
+
     if (userMarkerRef.current) {
-      // Update existing marker position
+      // 1. UPDATE Existing Marker
       userMarkerRef.current.setPosition(
         new window.Tmapv2.LatLng(userLocation.lat, userLocation.lon)
       );
+
+      // Instant Re-render of React Content
+      const customMarker = userMarkerRef.current as CustomMarker;
+      if (customMarker._reactRoot) {
+        renderContent(customMarker._reactRoot);
+      }
     } else {
-      // Create new marker
-      const markerId = `user-marker-${Date.now()}`;
+      // 2. CREATE New Marker
       const marker = new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(userLocation.lat, userLocation.lon),
         map: mapInstance.current!,
-        iconHTML: `<div id="${markerId}" style="width: 70px; height: 70px; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
+        // Increased container size to 100px to accommodate larger dog
+        iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
         zIndex: 999,
         title: '내 위치',
       });
       userMarkerRef.current = marker;
 
-      // Mount Lottie animation
       const mountLottie = (attempts = 0) => {
         const container = document.getElementById(markerId);
         if (container) {
           try {
+            // Check if root already exists on this container (cleanup safety)
+            // (In React 18 createRoot throws if called on existing root, but we track via _reactRoot)
+
             const root = createRoot(container);
-            root.render(
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  // Simulate an outline using drop-shadows: a tight dark one and a broader light glow, or just a thick white outline.
-                  // Let's try a distinct white outline to make it pop.
-                  filter:
-                    'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)',
-                }}
-              >
-                <Lottie
-                  animationData={strollerAnimation}
-                  loop={true}
-                  autoplay={true}
-                  style={{ width: '100%', height: '100%' }}
-                />
-              </div>
-            );
             (marker as CustomMarker)._reactRoot = root;
+            renderContent(root);
           } catch (e) {
             console.error('Lottie Mount Error:', e);
           }
         } else if (attempts < 20) {
-          // Retry if container not found yet (Tmap delay)
           setTimeout(() => mountLottie(attempts + 1), 100);
         }
       };
 
       mountLottie();
     }
-  }, [userLocation, isLoaded]);
+  }, [userLocation, isLoaded, routeStart, markerTheme]);
 
   // Reference Location Marker
   useEffect(() => {
@@ -274,46 +317,32 @@ export default function BackgroundMap({
 
     const map = mapInstance.current;
 
-    // Helper to create simple colored marker
-    const createColorMarker = (
-      lat: number,
-      lon: number,
-      color: string,
-      label?: string
-    ) => {
+    // Helper to create simple colored marker for waypoints only
+    const createWaypointMarker = (lat: number, lon: number, index: number) => {
       return new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(lat, lon),
         map: map,
         iconHTML: `
-          <div style="position: relative; display: flex; flex-col; gap: 4px; align-items: center; justify-content: center;">
-             <div style="
-                width: 32px; 
-                height: 32px; 
-                background-color: ${color}; 
-                border: 2px solid white; 
-                border-radius: 50%; 
-                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: white;
-                font-weight: bold;
-                font-size: 14px;
-             ">
-             ${label || ''}
-             </div>
-             <div style="
-                width: 0; 
-                height: 0; 
-                border-left: 6px solid transparent;
-                border-right: 6px solid transparent;
-                border-top: 8px solid ${color};
-                margin-top: -6px;
-             "></div>
+          <div style="
+            width: 24px; 
+            height: 24px; 
+            background-color: #10B981; 
+            border: 2px solid white; 
+            border-radius: 50%; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+          ">
+            ${index + 1}
           </div>
         `,
         zIndex: 200,
-        offset: new window.Tmapv2.Point(16, 38), // Center bottom approximate
+        // anchor not supported in TS defs, handle in CSS/HTML
+        offset: new window.Tmapv2.Point(12, 12), // Center offset for 24x24
       });
     };
 
@@ -327,7 +356,7 @@ export default function BackgroundMap({
       const path = routePath.map((p) => new window.Tmapv2.LatLng(p.lat, p.lon));
       routePolylineRef.current = new window.Tmapv2.Polyline({
         path: path,
-        strokeColor: '#FF6B00', // Main Orange
+        strokeColor: markerTheme === 'green' ? '#10B981' : '#FF6B00', // Green for Dog Mode, Orange for others
         strokeWeight: 6,
         strokeOpacity: 0.9,
         map: map,
@@ -345,13 +374,14 @@ export default function BackgroundMap({
       routeStartMarkerRef.current = null;
     }
     if (routeStart) {
-      routeStartMarkerRef.current = createColorMarker(
-        routeStart.lat,
-        routeStart.lon,
-        '#3B82F6', // Blue
-        '출'
-      );
-      // Bring map center to start if just setting start? No, fitBounds usually handles it if path exists.
+      routeStartMarkerRef.current = new window.Tmapv2.Marker({
+        position: new window.Tmapv2.LatLng(routeStart.lat, routeStart.lon),
+        map: map,
+        iconHTML: createSimsMarker(markerTheme),
+        title: '출발',
+        zIndex: 210,
+        offset: new window.Tmapv2.Point(20, 40), // Adjust for Sims marker size
+      });
     }
 
     // 3. End Marker
@@ -360,12 +390,13 @@ export default function BackgroundMap({
       routeEndMarkerRef.current = null;
     }
     if (routeEnd) {
-      routeEndMarkerRef.current = createColorMarker(
-        routeEnd.lat,
-        routeEnd.lon,
-        '#EF4444', // Red
-        '도'
-      );
+      routeEndMarkerRef.current = new window.Tmapv2.Marker({
+        position: new window.Tmapv2.LatLng(routeEnd.lat, routeEnd.lon),
+        map: map,
+        iconHTML: createSimsMarker(markerTheme),
+        title: '도착',
+        zIndex: 210,
+      });
     }
 
     // 4. Waypoint Markers
@@ -373,12 +404,7 @@ export default function BackgroundMap({
     routeWaypointMarkersRef.current = [];
     if (routeWaypoints) {
       routeWaypoints.forEach((wp, idx) => {
-        const marker = createColorMarker(
-          wp.lat,
-          wp.lon,
-          '#10B981', // Green
-          (idx + 1).toString()
-        );
+        const marker = createWaypointMarker(wp.lat, wp.lon, idx);
         routeWaypointMarkersRef.current.push(marker);
       });
     }
@@ -388,8 +414,7 @@ export default function BackgroundMap({
     routeWaypoints,
     routePath,
     isLoaded,
-    // Excluding routeStart/End/Ways logic from re-creation if simpler, but they are objects.
-    // Safe to re-run on change.
+    markerTheme, // Added dependency
   ]);
 
   return (
