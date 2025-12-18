@@ -14,9 +14,9 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
+import { useFilterStore } from '@/store/filterStore';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
-import { SpotCategory, type SpotCategoryType } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -51,18 +51,8 @@ function MapPageContent() {
   const [allSpots, setAllSpots] = useState<SpotCard[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
-  const [selectedCategories, setSelectedCategories] = useState<
-    SpotCategoryType[]
-  >([
-    SpotCategory.TOURIST_SPOT,
-    SpotCategory.CAFE,
-    SpotCategory.RESTAURANT,
-    SpotCategory.ACCOMMODATION,
-  ]);
-
-  const [accessibilityFilters, setAccessibilityFilters] = useState<
-    AccessibilityType[]
-  >([]);
+  // Store Filter State
+  const { selectedCategoryIds, selectedBarrierIds } = useFilterStore();
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
@@ -78,7 +68,7 @@ function MapPageContent() {
           mapx: effectiveCoordinates.lon,
           mapy: effectiveCoordinates.lat,
           filter_type:
-            selectedCategories.length > 0 ? selectedCategories : null,
+            selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
         });
 
         const newSpots = response.data || [];
@@ -116,23 +106,23 @@ function MapPageContent() {
         setIsFetching(false);
       }
     },
-    [effectiveCoordinates, selectedCategories]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveCoordinates, selectedCategoryIds]
   );
 
   useEffect(() => {
-    if (!isFetching) {
-      loadSpots(true);
-    }
-  }, [effectiveCoordinates, selectedCategories]);
+    loadSpots(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveCoordinates, selectedCategoryIds]);
 
   // Client-side Accessibility Filter logic
   const { displaySpots, isFallback } = useMemo(() => {
     if (!allSpots) return { displaySpots: [], isFallback: false };
 
     let filtered = allSpots;
-    if (accessibilityFilters.length > 0) {
+    if (selectedBarrierIds.length > 0) {
       filtered = allSpots.filter((spot) => {
-        return accessibilityFilters.every((filter) => {
+        return selectedBarrierIds.some((filter: AccessibilityType) => {
           const val = spot[filter];
           return val && val.trim() !== '';
         });
@@ -141,14 +131,14 @@ function MapPageContent() {
 
     const fallback =
       filtered.length === 0 &&
-      accessibilityFilters.length > 0 &&
+      selectedBarrierIds.length > 0 &&
       allSpots.length > 0;
 
     return {
       displaySpots: fallback ? allSpots : filtered,
       isFallback: fallback,
     };
-  }, [allSpots, accessibilityFilters]);
+  }, [allSpots, selectedBarrierIds]);
 
   const handleLocationChange = (coords: Coordinates) => {
     setManualLocation(coords);
@@ -179,7 +169,7 @@ function MapPageContent() {
   };
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-gray-100 dark:bg-gray-900">
+    <div className="relative w-full h-dvh overflow-hidden bg-gray-100 dark:bg-gray-900">
       {/* Background Map - Updated with User & Center Location */}
       <BackgroundMap
         spots={displaySpots || []}
@@ -238,48 +228,46 @@ function MapPageContent() {
 
           {/* Floating Top Navigation */}
           <div
-            className={`absolute top-6 left-4 right-4 z-30 flex flex-col items-center transition-transform duration-500 ease-in-out ${isMapMode ? '-translate-y-48 pointer-events-none' : 'translate-y-0 pointer-events-auto'}`}
+            className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-transform duration-500 ease-in-out ${isMapMode ? '-translate-y-48' : 'translate-y-0'}`}
           >
-            <div className="flex items-center gap-1 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full pl-1 pr-2 py-1 shadow-xl border border-white/20 dark:border-slate-600 max-w-full overflow-x-auto no-scrollbar">
-              <div className="shrink-0">
-                <GeoLocation
-                  coordinates={effectiveCoordinates}
-                  onLocationChange={handleLocationChange}
-                  onHelpClick={() => setShowOnboarding(true)}
-                  onUserClick={() => navigate({ to: '/user-info' })}
-                  user={profile}
-                  compact={true}
-                />
-              </div>
-              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1 shrink-0" />
-              {location.loaded && (
-                <div className="hidden min-[400px]:flex flex-col items-start justify-center text-[10px] text-gray-500 dark:text-gray-400 font-mono leading-tight shrink-0">
-                  <div>{effectiveCoordinates?.lat.toFixed(4)}</div>
-                  <div>{effectiveCoordinates?.lon.toFixed(4)}</div>
+            {/* Centered Top Nav Info */}
+            <div className="pointer-events-auto flex-1 min-w-0 max-w-3xl mx-auto z-40">
+              <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
+                <div className="pointer-events-auto shrink-0 z-50">
+                  <CategoryFilter />
                 </div>
-              )}
-              <div className="hidden min-[400px]:block h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1 shrink-0" />
-              <div className="shrink-0">
-                <WeatherWidget coordinates={effectiveCoordinates} />
-              </div>
-              <div className="hidden min-[400px]:block h-6 w-px bg-gray-300 dark:bg-gray-600 mx-1 shrink-0" />
-              <div className="shrink-0">
-                <ModeToggle />
-              </div>
-            </div>
 
-            <div className="mt-3 flex items-start gap-2 w-full max-w-sm sm:max-w-md justify-center">
-              <div className="flex-1 min-w-0">
-                <CategoryFilter
-                  selected={selectedCategories}
-                  onChange={setSelectedCategories}
-                />
-              </div>
-              <div className="shrink-0">
-                <BarrierFreeFilter
-                  selected={accessibilityFilters}
-                  onChange={setAccessibilityFilters}
-                />
+                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+
+                <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
+                  <GeoLocation
+                    coordinates={effectiveCoordinates}
+                    onLocationChange={handleLocationChange}
+                    onHelpClick={() => setShowOnboarding(true)}
+                    onUserClick={() => navigate({ to: '/user-info' })}
+                    user={profile}
+                    compact={true}
+                    hideUserIcon={true} // Passing new prop
+                  />
+                </div>
+
+                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+
+                <div className="shrink-0 flex justify-center">
+                  <WeatherWidget coordinates={effectiveCoordinates} />
+                </div>
+
+                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+
+                <div className="shrink-0">
+                  <ModeToggle />
+                </div>
+
+                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+
+                <div className="pointer-events-auto shrink-0 z-50">
+                  <BarrierFreeFilter />
+                </div>
               </div>
             </div>
           </div>

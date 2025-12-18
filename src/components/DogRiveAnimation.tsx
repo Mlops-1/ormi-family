@@ -42,7 +42,7 @@ export default function DogRiveAnimation() {
   }, [rive, xAxisInput, yAxisInput]);
 
   return (
-    <div className="w-full h-64 md:h-80 relative">
+    <div className="w-full h-full relative">
       <RiveComponent className="w-full h-full" />
     </div>
   );

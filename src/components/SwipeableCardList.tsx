@@ -248,12 +248,12 @@ export default function SwipeableCardList({
             style={{ x }}
             className="absolute w-full px-4 cursor-grab active:cursor-grabbing h-full z-10 font-sans"
           >
-            <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-none shadow-2xl border border-white/20 dark:border-slate-600 h-full flex flex-col relative group overflow-hidden">
+            <div className="bg-white/90 backdrop-blur-md rounded-none shadow-2xl border border-white/20 h-full flex flex-col relative group overflow-hidden">
               <motion.div
                 initial={false}
                 animate={{ height: isExpanded ? 0 : '50%' }}
                 transition={{ duration: 0.3 }}
-                className="w-full bg-jeju-light-divider dark:bg-slate-600 relative overflow-hidden shrink-0 rounded-none"
+                className="w-full bg-jeju-light-divider relative overflow-hidden shrink-0 rounded-none"
               >
                 <img
                   src={currentCard.first_image || fallbackImage}
@@ -273,18 +273,18 @@ export default function SwipeableCardList({
 
               <div className="p-6 flex flex-col flex-1 bg-transparent relative min-h-0 rounded-none overflow-visible">
                 <div className="flex justify-between items-start mb-1 shrink-0">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white line-clamp-1 leading-tight drop-shadow-sm">
+                  <h3 className="text-2xl font-bold text-gray-900 line-clamp-1 leading-tight drop-shadow-sm">
                     {currentCard.title}
                   </h3>
                 </div>
 
                 {distance && (
-                  <div className="flex items-center gap-1 text-sm text-ormi-pink-600 dark:text-ormi-pink-400 font-medium mb-3 shrink-0">
+                  <div className="flex items-center gap-1 text-sm text-ormi-pink-600 font-medium mb-3 shrink-0">
                     <span>📍 현 위치에서 {distance}km</span>
                   </div>
                 )}
 
-                <div className="text-gray-700 dark:text-gray-200 text-base flex flex-col min-h-0 flex-1">
+                <div className="text-gray-700 text-base flex flex-col min-h-0 flex-1">
                   <div className="flex-shrink-0">
                     <p className="mb-2 font-medium">{currentCard.addr_1}</p>
                     <p className="text-sm text-gray-500 line-clamp-2">
@@ -295,10 +295,10 @@ export default function SwipeableCardList({
 
                   {currentCard.reviews && currentCard.reviews.length > 0 && (
                     <div
-                      className={`mt-6 border-t border-gray-200 dark:border-slate-600 pt-4 flex flex-col min-h-0 ${isExpanded ? 'flex-1 overflow-hidden' : ''}`}
+                      className={`mt-6 border-t border-gray-200 pt-4 flex flex-col min-h-0 ${isExpanded ? 'flex-1 overflow-hidden' : ''}`}
                     >
                       <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                        <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                        <span className="text-sm font-bold text-gray-800">
                           방문자 리뷰 ({currentCard.reviews.length})
                         </span>
                         {currentCard.reviews.length > 1 && (
@@ -307,7 +307,7 @@ export default function SwipeableCardList({
                               e.stopPropagation();
                               setIsExpanded(!isExpanded);
                             }}
-                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1 shrink-0 bg-white/50 dark:bg-slate-700/50 rounded-full"
+                            className="text-xs text-jeju-light-primary hover:text-jeju-light-primary/80 font-medium whitespace-nowrap px-2 py-1 shrink-0 bg-white/50 rounded-full"
                           >
                             {isExpanded ? '접기' : '더보기'}
                           </button>
@@ -323,7 +323,7 @@ export default function SwipeableCardList({
                         ).map((review) => (
                           <div
                             key={review.review_id}
-                            className="bg-white/60 dark:bg-slate-800/60 p-3 rounded-none text-sm border border-gray-100 dark:border-slate-700 shrink-0 shadow-sm"
+                            className="bg-white/60 p-3 rounded-none text-sm border border-gray-100 shrink-0 shadow-sm"
                           >
                             <div className="text-xs text-gray-400 mb-1">
                               {new Date(review.created_at).toLocaleDateString(
@@ -331,7 +331,7 @@ export default function SwipeableCardList({
                                 { month: 'long', day: 'numeric' }
                               )}
                             </div>
-                            <p className="text-gray-700 dark:text-gray-200 leading-relaxed font-sans">
+                            <p className="text-gray-700 leading-relaxed font-sans">
                               {review.detail}
                             </p>
                           </div>

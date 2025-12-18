@@ -1,5 +1,5 @@
 import babyIcon from '@/assets/lotties/baby_girl_icon.json';
-import dogIcon from '@/assets/lotties/dog_icon.json';
+import dogIcon from '@/assets/lotties/puppy_relaxing.json';
 import Lottie, { type LottieRefCurrentProps } from 'lottie-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -65,7 +65,7 @@ export default function ModeToggle() {
   return (
     <button
       onClick={toggleMode}
-      className="w-10 h-10 relative flex items-center justify-center rounded-full bg-white dark:bg-slate-700 shadow-md border border-gray-200 dark:border-gray-600 hover:scale-105 transition-transform overflow-hidden"
+      className="w-10 h-10 relative flex items-center justify-center rounded-full bg-white dark:bg-ormi-green-500 shadow-md border border-gray-200 dark:border-ormi-green-600 hover:scale-105 transition-transform overflow-hidden"
       aria-label="Toggle Theme"
       title={mode === 'light' ? 'Switch to Pet Mode' : 'Switch to Toddler Mode'}
     >

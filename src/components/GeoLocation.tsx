@@ -5,7 +5,6 @@ import type {
 } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
 import { createOrangeMarker } from '@/utils/marker';
-import { Icon } from '@cloudscape-design/components';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { MapPin, Search, X } from 'lucide-react';
@@ -22,6 +21,7 @@ interface Props {
     profileImage?: string | null;
   } | null;
   compact?: boolean;
+  hideUserIcon?: boolean; // New prop
 }
 
 interface PoiSuggestion {
@@ -38,6 +38,7 @@ export default function GeoLocation({
   onUserClick,
   user,
   compact = false,
+  hideUserIcon = false, // New prop default value
 }: Props) {
   const { isLoaded } = useTmapScript();
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -299,58 +300,51 @@ export default function GeoLocation({
   return (
     <>
       <div
-        className={`flex items-center ${compact ? 'gap-1' : 'w-full justify-between gap-2 px-4 py-2'}`}
+        className={`flex items-center gap-2 max-w-full relative z-10 ${
+          compact
+            ? 'px-2 py-1'
+            : 'bg-white/80 dark:bg-slate-700/80 px-4 py-2 shadow-sm border border-ormi-green-200 dark:border-slate-600 rounded-full'
+        }`}
       >
-        {/* Location Button */}
-        <button
+        {/* Address Area (Clickable) */}
+        <div
+          className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden cursor-pointer active:opacity-70 transition-opacity"
           onClick={handleOpenMap}
-          className={`flex items-center gap-2 ${compact ? 'px-2 py-1' : 'bg-white/80 dark:bg-slate-700/80 px-4 py-2 shadow-sm border border-ormi-green-200 dark:border-slate-600'} rounded-full active:scale-95 transition-transform cursor-pointer`}
         >
-          <span className="text-ormi-ember-500 dark:text-ormi-ember-400">
-            <MapPin size={compact ? 16 : 18} />
-          </span>
-          <span
-            className={`font-bold text-gray-800 dark:text-gray-100 ${compact ? 'text-sm' : 'text-sm md:text-base'}`}
-          >
+          <MapPin
+            size={compact ? 16 : 20}
+            className="text-orange-500 shrink-0"
+          />
+          <span className="font-bold text-sm text-gray-800 truncate">
             {addressData || '위치 확인 중...'}
           </span>
-          {!compact && (
-            <span className="text-gray-400">
-              <Icon name="angle-down" />
-            </span>
-          )}
-        </button>
-
-        {/* Right Buttons */}
-        <div className="flex gap-1 items-center">
-          {user?.nickname && !compact && (
-            <span className="hidden md:block text-sm font-semibold text-gray-700 dark:text-gray-200 bg-white/80 dark:bg-slate-700/80 px-3 py-2 rounded-full shadow-sm">
-              {user.nickname}님
-            </span>
-          )}
-          <button
-            onClick={onUserClick}
-            className={`p-2 rounded-full hover:bg-ormi-pink-50 dark:hover:bg-slate-600 transition-colors cursor-pointer text-gray-700 dark:text-gray-200 ${compact ? '' : 'bg-white/80 dark:bg-slate-700/80 shadow-sm border border-transparent hover:border-ormi-pink-200'}`}
-          >
-            {user?.profileImage ? (
-              <img
-                src={user.profileImage}
-                alt="User"
-                className="w-6 h-6 rounded-full"
-              />
-            ) : (
-              <Icon name="user-profile" />
-            )}
-          </button>
-          {!compact && (
-            <button
-              onClick={onHelpClick}
-              className="p-2 bg-white/80 dark:bg-slate-700/80 rounded-full shadow-sm hover:bg-ormi-pink-50 dark:hover:bg-slate-600 border border-transparent hover:border-ormi-pink-200 transition-colors cursor-pointer text-gray-700 dark:text-gray-200"
-            >
-              <Icon name="status-info" />
-            </button>
-          )}
         </div>
+
+        {/* User Icon (Optional) */}
+        {!hideUserIcon && user && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onUserClick?.();
+            }}
+            className="shrink-0 ml-1"
+          >
+            <div
+              className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center border-2 border-white shadow-sm overflow-hidden bg-cover bg-center"
+              style={{
+                backgroundImage: user.profileImage
+                  ? `url(${user.profileImage})`
+                  : 'none',
+              }}
+            >
+              {!user.profileImage && (
+                <span className="text-orange-500 font-bold text-xs">
+                  {user.nickname?.[0] || 'U'}
+                </span>
+              )}
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Map Modal - Portalled to body to avoid clipping */}
