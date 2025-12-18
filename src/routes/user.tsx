@@ -1,9 +1,12 @@
+import { UserAPI, type UserUpdatePayload } from '@/api/user';
 import Checkbox from '@/components/Checkbox';
 import Input from '@/components/Input';
 import Logo from '@/components/Logo';
 import Notification from '@/components/Notification';
+import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
-import { AccessibilityCondition, SpotCategory } from '@/types/auth';
+import { SpotCategory } from '@/types/auth'; // Removed AccessibilityCondition
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { ArrowLeft, Camera, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -14,98 +17,79 @@ export const Route = createFileRoute('/user')({
 });
 
 function UserProfilePage() {
-  const { isAuthenticated, isProfileComplete, profile, refreshProfile } =
-    useAuth();
+  const { refreshProfile } = useAuth();
   const navigate = useNavigate();
-
-  // Mode: 'onboarding' (create) vs 'edit' (update)
-  const mode = isProfileComplete ? 'edit' : 'onboarding';
+  const queryClient = useQueryClient();
 
   // Form State
-  const [nickname, setNickname] = useState('');
-  const [nicknameError, setNicknameError] = useState('');
-  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [email, setEmail] = useState(''); // Readonly or hidden?
+  const [profileImage, setProfileImage] = useState<string | null>(null);
 
+  // Flags
+  const [isDisabled, setIsDisabled] = useState(false);
+  const [withChild, setWithChild] = useState(false);
+  const [withPet, setWithPet] = useState(false);
+  const [hasStroller, setHasStroller] = useState(false);
+
+  // Categories (Visual only if API doesn't support, or keep mock sync)
   const [selectedCategories, setSelectedCategories] = useState<SpotCategory[]>(
     []
   );
-  const [categoriesError, setCategoriesError] = useState('');
 
-  const [selectedConditions, setSelectedConditions] = useState<
-    AccessibilityCondition[]
-  >([]);
-
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [submitting, setSubmitting] = useState(false);
+  const [nameError, setNameError] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize form with profile data if in edit mode
+  // Fetch User Data
+  const { data: userData, isLoading } = useQuery({
+    queryKey: ['userInfo', TEMP_USER_ID],
+    queryFn: async () => {
+      const response = await UserAPI.getUserInfo(TEMP_USER_ID);
+      // Backend returns an array, use the first item
+      return Array.isArray(response.data) ? response.data[0] : response.data;
+    },
+  });
+
+  // Populate Form
   useEffect(() => {
-    if (mode === 'edit' && profile) {
-      setNickname(profile.nickname);
-      setSelectedCategories(profile.preferredCategories);
-      setSelectedConditions(profile.accessibilityConditions);
-      setProfileImage(profile.profileImage || null);
+    if (userData) {
+      setUserName(userData.user_name || '');
+      setEmail(userData.email || '');
+      setProfileImage(userData.profile || null);
+      setIsDisabled(userData.is_disabled === 1);
+      setWithChild(userData.with_child === 1);
+      setWithPet(userData.with_pet === 1);
+      setHasStroller(userData.has_stroller === 1);
+      // Note: Categories not in API response, so defaults to empty or local storage if we wanted to mix.
     }
-  }, [mode, profile]);
+  }, [userData]);
 
-  // Authenticated check
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate({ to: '/login' });
-    }
-  }, [isAuthenticated, navigate]);
+  // Mutation
+  const updateMutation = useMutation({
+    mutationFn: (data: UserUpdatePayload) =>
+      UserAPI.updateUser(TEMP_USER_ID, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userInfo', TEMP_USER_ID] });
+      setSuccessMsg('프로필이 성공적으로 수정되었습니다.');
+      // Optional: Refresh auth context if it depends on this
+      refreshProfile();
+      setTimeout(() => setSuccessMsg(null), 3000);
+    },
+    onError: (err) => {
+      console.error(err);
+      setError('프로필 저장 중 오류가 발생했습니다.');
+    },
+  });
 
-  const validateNickname = (value: string): boolean => {
+  const validateName = (value: string): boolean => {
     if (!value || value.trim().length === 0) {
-      setNicknameError('닉네임을 입력해주세요.');
+      setNameError('이름을 입력해주세요.');
       return false;
     }
-
-    const trimmed = value.trim();
-    // Regex: Hangul, English, Numbers, 2-6 chars
-    const nicknameRegex = /^[a-zA-Z0-9가-힣]{2,6}$/;
-
-    if (!nicknameRegex.test(trimmed)) {
-      setNicknameError('한글, 영문, 숫자 2~6자로 입력해주세요.');
-      return false;
-    }
-
-    setNicknameError('');
+    setNameError('');
     return true;
-  };
-
-  const validateCategories = (): boolean => {
-    if (selectedCategories.length === 0) {
-      setCategoriesError('최소 하나의 관심사를 선택해주세요.');
-      return false;
-    }
-
-    setCategoriesError('');
-    return true;
-  };
-
-  const handleCategoryChange = (category: SpotCategory, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories([...selectedCategories, category]);
-    } else {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category));
-    }
-    setCategoriesError('');
-  };
-
-  const handleConditionChange = (
-    condition: AccessibilityCondition,
-    checked: boolean
-  ) => {
-    if (checked) {
-      setSelectedConditions([...selectedConditions, condition]);
-    } else {
-      setSelectedConditions(selectedConditions.filter((c) => c !== condition));
-    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,80 +110,43 @@ function UserProfilePage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const isNicknameValid = validateNickname(nickname);
-    const areCategoriesValid = validateCategories();
-
-    if (!isNicknameValid || !areCategoriesValid) {
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setError(null);
-
-      // MOCK LOGIC for "No DB" requirement:
-      // We enforce a single "demo-user" identity to ensure profile is always replaced/updated, not appended.
-      const MOCK_CI_VALUE = 'demo-user-1';
-
-      // 1. Ensure AuthData exists so AuthContext can pick it up
-      const mockAuthData = {
-        ciValue: MOCK_CI_VALUE,
-        accessToken: 'mock-access-token',
-        refreshToken: 'mock-refresh-token',
-        idToken: 'mock-id-token',
-        expiresAt: Date.now() + 3600 * 1000 * 24 * 365, // 1 year
-      };
-      localStorage.setItem('auth_data', JSON.stringify(mockAuthData));
-
-      // 2. Save/Overwrite Profile with consistent key
-      const now = new Date().toISOString();
-      const newProfile = {
-        ciValue: MOCK_CI_VALUE,
-        nickname: nickname.trim(),
-        preferredCategories: selectedCategories,
-        accessibilityConditions: selectedConditions,
-        profileImage: profileImage || undefined,
-        createdAt: profile?.createdAt || now,
-        updatedAt: now,
-      };
-
-      // Key must watch StorageService's expectation: "user_profile_" + ciValue
-      localStorage.setItem(
-        `user_profile_${MOCK_CI_VALUE}`,
-        JSON.stringify(newProfile)
-      );
-
-      // 3. Force Context Refresh
-      refreshProfile(); // Trigger context update for immediate reflection
-
-      // Dispatch storage event for other tabs if needed
-      window.dispatchEvent(new Event('storage'));
-
-      // Optimistic success
-      setSuccessMsg('프로필이 성공적으로 수정되었습니다.');
-      setIsEditingNickname(false);
-
-      // Small delay then redirect
-      setTimeout(() => {
-        setSuccessMsg(null);
-        if (mode === 'onboarding') {
-          navigate({ to: '/' });
-        }
-      }, 1000);
-
-      setSubmitting(false);
-    } catch (err) {
-      console.error(err);
-      setError('프로필 저장 중 오류가 발생했습니다.');
-      setSubmitting(false);
+  // Keep category logic for UI feel
+  const handleCategoryChange = (category: SpotCategory, checked: boolean) => {
+    if (checked) {
+      setSelectedCategories([...selectedCategories, category]);
+    } else {
+      setSelectedCategories(selectedCategories.filter((c) => c !== category));
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateName(userName)) return;
+
+    const payload = {
+      user_name: userName,
+      email: email, // Send back existing email
+      profile: profileImage || '', // Send image string/url
+      is_disabled: isDisabled ? 1 : 0,
+      with_child: withChild ? 1 : 0,
+      with_pet: withPet ? 1 : 0,
+      has_stroller: hasStroller ? 1 : 0,
+    };
+
+    updateMutation.mutate(payload);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        로딩 중...
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-jeju-light-background dark:bg-jeju-dark-background p-4 animate-fade-in">
+    <div className="min-h-screen bg-jeju-light-background dark:bg-jeju-dark-background p-4 animate-fade-in relative pb-24">
       {(error || successMsg) && (
         <Notification
           items={[
@@ -227,29 +174,28 @@ function UserProfilePage() {
         />
       )}
 
-      <div className="w-full max-w-md">
-        <div className="bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-2xl shadow-xl p-8 relative border border-jeju-light-divider dark:border-jeju-dark-divider">
-          {mode === 'edit' && (
-            <button
-              onClick={() => navigate({ to: '/' })}
-              className="absolute top-6 left-6 text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary hover:text-jeju-light-text-primary dark:hover:text-jeju-dark-text-primary transition-colors p-2 -ml-2 rounded-full hover:bg-jeju-light-background dark:hover:bg-jeju-dark-background"
-            >
-              <ArrowLeft size={24} />
-            </button>
-          )}
+      <div className="w-full">
+        {/* Header / Nav */}
+        <div className="flex items-center mb-8">
+          <button
+            onClick={() => navigate({ to: '/user-info' })} // Go back to info
+            className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary hover:text-jeju-light-text-primary dark:hover:text-jeju-light-text-primary transition-colors p-2 -ml-2 rounded-full hover:bg-jeju-light-background dark:hover:bg-jeju-dark-background"
+          >
+            <ArrowLeft size={24} />
+          </button>
+        </div>
 
+        <div className="bg-jeju-light-surface dark:bg-jeju-dark-surface rounded-2xl p-6 shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider relative">
           {/* Logo and Title */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 pt-4">
             <div className="flex justify-center mb-4">
               <Logo />
             </div>
             <h1 className="text-2xl font-bold text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-2">
-              {mode === 'onboarding' ? '프로필 설정' : '내 정보 수정'}
+              내 정보 수정
             </h1>
             <p className="text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
-              {mode === 'onboarding'
-                ? '서비스 이용을 위해 기본 정보를 입력해주세요.'
-                : '변경할 정보를 입력해주세요.'}
+              변경할 정보를 입력해주세요.
             </p>
           </div>
 
@@ -299,39 +245,59 @@ function UserProfilePage() {
               )}
             </div>
 
-            {/* Nickname Input */}
+            {/* Name Input */}
             <div>
               <div className="flex justify-between items-center mb-1">
                 <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary">
-                  닉네임
+                  이름
                 </label>
-                {mode === 'edit' && !isEditingNickname && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditingNickname(true)}
-                    className="text-xs text-jeju-light-secondary dark:text-jeju-dark-secondary font-medium hover:underline"
-                  >
-                    변경하기
-                  </button>
-                )}
+                {/* Always allow edit for now */}
               </div>
               <Input
-                value={nickname}
+                value={userName}
                 onChange={(e) => {
-                  setNickname(e.detail.value);
-                  if (nicknameError) validateNickname(e.detail.value);
+                  setUserName(e.detail.value);
+                  if (nameError) validateName(e.detail.value);
                 }}
-                onBlur={() => validateNickname(nickname)}
-                error={nicknameError}
-                placeholder="닉네임 (2-20자)"
-                disabled={mode === 'edit' && !isEditingNickname}
+                onBlur={() => validateName(userName)}
+                error={nameError}
+                placeholder="이름을 입력해주세요"
               />
             </div>
 
-            {/* Spot Categories */}
+            {/* Accessibility Conditions (New 4 Fields) */}
             <div>
               <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
-                선호하는 장소 (복수 선택 가능) *
+                이동 편의 고려사항 (선택)
+              </label>
+              <div className="space-y-2 bg-jeju-light-background dark:bg-jeju-dark-background p-4 rounded-xl border border-jeju-light-divider dark:border-jeju-dark-divider">
+                <Checkbox
+                  label="♿ 휠체어 사용"
+                  checked={isDisabled}
+                  onChange={(e) => setIsDisabled(e.detail.checked)}
+                />
+                <Checkbox
+                  label="👶 아이 동반"
+                  checked={withChild}
+                  onChange={(e) => setWithChild(e.detail.checked)}
+                />
+                <Checkbox
+                  label="🐕 반려동물 동반"
+                  checked={withPet}
+                  onChange={(e) => setWithPet(e.detail.checked)}
+                />
+                <Checkbox
+                  label="🛒 유모차 사용"
+                  checked={hasStroller}
+                  onChange={(e) => setHasStroller(e.detail.checked)}
+                />
+              </div>
+            </div>
+
+            {/* Categories (Keep UI but maybe separate header) */}
+            <div>
+              <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
+                선호하는 장소 (참고용)
               </label>
               <div className="space-y-2 bg-jeju-light-background dark:bg-jeju-dark-background p-4 rounded-xl border border-jeju-light-divider dark:border-jeju-dark-divider">
                 <Checkbox
@@ -359,69 +325,15 @@ function UserProfilePage() {
                   }
                 />
               </div>
-              {categoriesError && (
-                <p className="text-sm text-red-600 mt-2 ml-1">
-                  {categoriesError}
-                </p>
-              )}
-            </div>
-
-            {/* Accessibility Conditions */}
-            <div>
-              <label className="block text-sm font-medium text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-3">
-                이동 편의 고려사항 (선택)
-              </label>
-              <div className="space-y-2 bg-jeju-light-background dark:bg-jeju-dark-background p-4 rounded-xl border border-jeju-light-divider dark:border-jeju-dark-divider">
-                <Checkbox
-                  label="♿ 휠체어/유모차 접근성 필요"
-                  checked={selectedConditions.includes(
-                    AccessibilityCondition.WHEELCHAIR
-                  )}
-                  onChange={(e) =>
-                    handleConditionChange(
-                      AccessibilityCondition.WHEELCHAIR,
-                      e.detail.checked
-                    )
-                  }
-                />
-                <Checkbox
-                  label="👶 아이와 함께해요"
-                  checked={selectedConditions.includes(
-                    AccessibilityCondition.WITH_CHILDREN
-                  )}
-                  onChange={(e) =>
-                    handleConditionChange(
-                      AccessibilityCondition.WITH_CHILDREN,
-                      e.detail.checked
-                    )
-                  }
-                />
-                <Checkbox
-                  label="👵 어르신과 함께해요"
-                  checked={selectedConditions.includes(
-                    AccessibilityCondition.WITH_ELDERLY
-                  )}
-                  onChange={(e) =>
-                    handleConditionChange(
-                      AccessibilityCondition.WITH_ELDERLY,
-                      e.detail.checked
-                    )
-                  }
-                />
-              </div>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={updateMutation.isPending}
               className="w-full py-4 px-4 bg-jeju-light-primary hover:bg-jeju-light-primary-variant dark:bg-jeju-dark-primary dark:hover:bg-jeju-dark-primary-variant disabled:bg-jeju-light-text-disabled disabled:dark:bg-jeju-dark-text-disabled text-white font-bold rounded-xl shadow-lg shadow-jeju-light-primary/30 transition-all active:scale-98"
             >
-              {submitting
-                ? '저장 중...'
-                : mode === 'onboarding'
-                  ? '시작하기'
-                  : '수정 완료'}
+              {updateMutation.isPending ? '저장 중...' : '수정 완료'}
             </button>
           </form>
         </div>

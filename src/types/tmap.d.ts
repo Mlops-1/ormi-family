@@ -12,6 +12,7 @@ declare global {
       setZoom(zoom: number): void;
       addListener(eventType: string, callback: (evt: any) => void): void;
       destroy(): void;
+      fitBounds(bounds: LatLngBounds): void;
     }
 
     interface MapOptions {
@@ -29,6 +30,11 @@ declare global {
       lng(): number;
     }
 
+    class LatLngBounds {
+      constructor(sw?: LatLng, ne?: LatLng);
+      extend(latlng: LatLng): void;
+    }
+
     class Marker {
       constructor(options?: MarkerOptions);
       setMap(map: Map | null): void;
@@ -42,7 +48,28 @@ declare global {
       map?: Map;
       draggable?: boolean;
       icon?: string;
+      iconHTML?: string; // For custom HTML markers
       title?: string;
+      label?: string; // HTML content or text for label
+      offset?: Point;
+    }
+
+    class Point {
+      constructor(x: number, y: number);
+    }
+
+    class Polyline {
+      constructor(options?: PolylineOptions);
+      setMap(map: Map | null): void;
+      setPath(path: LatLng[]): void;
+    }
+
+    interface PolylineOptions {
+      path: LatLng[];
+      strokeColor?: string;
+      strokeWeight?: number;
+      strokeOpacity?: number;
+      map?: Map;
     }
 
     // Simplistic event object for Tmap

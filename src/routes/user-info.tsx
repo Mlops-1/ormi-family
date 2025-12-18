@@ -1,28 +1,23 @@
 import { FavoritesAPI } from '@/api/favorites';
+import { UserAPI } from '@/api/user'; // Import UserAPI
+import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import Logo from '@/components/Logo';
-import { useAnalytics } from '@/hooks/useAnalytics';
-import { useAuth } from '@/hooks/useAuth';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { TEMP_USER_ID } from '@/constants/temp_user';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { ArrowLeft, UserCog } from 'lucide-react';
+import { ArrowLeft, Baby, PawPrint, ShoppingCart, UserCog } from 'lucide-react'; // Added Icons
 import { useState } from 'react';
 
 // Cloudscape Imports
-import Box from '@cloudscape-design/components/box';
-import Button from '@cloudscape-design/components/button';
-import Header from '@cloudscape-design/components/header';
-import Modal from '@cloudscape-design/components/modal';
-import SpaceBetween from '@cloudscape-design/components/space-between';
 
+import SpotDetailModal from '@/components/SpotDetailModal';
 export const Route = createFileRoute('/user-info')({
   component: UserInfoPage,
 });
 
 function UserInfoPage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const analytics = useAnalytics();
 
   // Mock lat/lon (Jeju City)
   const lat = 33.4996;
@@ -30,14 +25,22 @@ function UserInfoPage() {
 
   // Selected item for modal
   const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Fetch User Info
+  const { data: userInfo, isLoading: isUserLoading } = useQuery({
+    queryKey: ['userInfo', TEMP_USER_ID],
+    queryFn: async () => {
+      const response = await UserAPI.getUserInfo(TEMP_USER_ID);
+      // Backend returns an array, use the first item
+      return Array.isArray(response.data) ? response.data[0] : response.data;
+    },
+  });
 
   const { data: favorites, isLoading } = useQuery({
-    queryKey: ['favorites', 'user-1'],
+    queryKey: ['favorites', TEMP_USER_ID],
     queryFn: async () => {
-      // Always user 1 per requirements
       const response = await FavoritesAPI.getFavorites({
-        user_id: 1,
+        user_id: TEMP_USER_ID,
         lat,
         lon,
       });
@@ -45,86 +48,36 @@ function UserInfoPage() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async (contentId: number) => {
-      await FavoritesAPI.removeFavorite(contentId, 1);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
-      setIsModalOpen(false);
-      setSelectedSpot(null);
-    },
-  });
-
   const handleSpotClick = (contentId: number) => {
     setSelectedSpot(contentId);
-    setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
-    if (selectedSpot) {
-      deleteMutation.mutate(selectedSpot);
-    }
+  const handleCloseDetail = () => {
+    setSelectedSpot(null);
   };
 
-  const handleFindRoute = async () => {
-    // Placeholder for route finding - open map in new tab
-    // If we have the spot data, we could link to it.
-    // We can find the spot in the favorites list.
-    const spot = favorites?.find((s) => s.content_id === selectedSpot);
-    if (spot) {
-      try {
-        // Track navigation analytics event
-        await analytics.trackNavigation?.(
-          spot.content_id.toString(),
-          spot.lat,
-          spot.lon
-        );
-      } catch (err) {
-        console.error('Failed to track navigation event', err);
-      }
-
-      // Simple search link
-      const url = `https://map.kakao.com/link/search/${spot.title}`;
-      window.open(url, '_blank');
+  const getUserDisplayName = () => {
+    if (
+      typeof userInfo?.user_name === 'string' &&
+      userInfo.user_name.trim() !== ''
+    ) {
+      return userInfo.user_name;
     }
-    setIsModalOpen(false);
+    return `유저 ${userInfo?.user_id || TEMP_USER_ID}`;
   };
 
   return (
     <div className="min-h-screen bg-jeju-light-background dark:bg-jeju-dark-background p-4 animate-fade-in pb-24">
-      {/* Cloudscape Modal */}
-      <Modal
-        onDismiss={() => setIsModalOpen(false)}
-        visible={isModalOpen}
-        closeAriaLabel="Close modal"
-        footer={
-          <Box float="right">
-            <SpaceBetween direction="horizontal" size="xs">
-              <Button variant="link" onClick={() => setIsModalOpen(false)}>
-                취소
-              </Button>
-            </SpaceBetween>
-          </Box>
-        }
-        header={<Header>여행지 설정</Header>}
-      >
-        <SpaceBetween direction="vertical" size="m">
-          <Button variant="primary" fullWidth onClick={handleFindRoute}>
-            길찾기
-          </Button>
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={handleDelete}
-            loading={deleteMutation.isPending}
-          >
-            찜 삭제
-          </Button>
-        </SpaceBetween>
-      </Modal>
+      {selectedSpot && favorites && (
+        <SpotDetailModal
+          spot={favorites.find((f) => f.content_id === selectedSpot)!}
+          isVisible={true}
+          onDismiss={handleCloseDetail}
+          userLocation={{ lat, lon }}
+        />
+      )}
 
-      <div className="max-w-md mx-auto relative">
+      <div className="w-full relative">
         {/* Header */}
         <div className="flex items-center justify-between mb-8 pt-4">
           <button
@@ -142,15 +95,67 @@ function UserInfoPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-jeju-light-text-primary dark:text-jeju-dark-text-primary mb-1">
-                {user?.attributes?.name || 'User 1'} 님 안녕하세요
+                {isUserLoading
+                  ? '로딩 중...'
+                  : `${getUserDisplayName()} 님 안녕하세요`}
               </h1>
-              <p className="text-sm text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
+              <p className="text-sm text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary mb-3">
                 나만의 제주 여행지 보관함
               </p>
+
+              {/* Accessibility Icons */}
+              {userInfo && (
+                <div className="flex gap-3 text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary">
+                  {userInfo.is_disabled === 1 && (
+                    <div
+                      className="flex flex-col items-center"
+                      title="휠체어 사용"
+                    >
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-full text-orange-600 dark:text-orange-400">
+                        <UserCog size={20} />
+                      </div>
+                      <span className="text-[10px] mt-1">휠체어</span>
+                    </div>
+                  )}
+                  {userInfo.with_child === 1 && (
+                    <div
+                      className="flex flex-col items-center"
+                      title="아이 동반"
+                    >
+                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
+                        <Baby size={20} />
+                      </div>
+                      <span className="text-[10px] mt-1">아이</span>
+                    </div>
+                  )}
+                  {userInfo.with_pet === 1 && (
+                    <div
+                      className="flex flex-col items-center"
+                      title="반려동물 동반"
+                    >
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                        <PawPrint size={20} />
+                      </div>
+                      <span className="text-[10px] mt-1">반려동물</span>
+                    </div>
+                  )}
+                  {userInfo.has_stroller === 1 && (
+                    <div
+                      className="flex flex-col items-center"
+                      title="유모차 사용"
+                    >
+                      <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+                        <ShoppingCart size={20} />
+                      </div>
+                      <span className="text-[10px] mt-1">유모차</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <button
               onClick={() => navigate({ to: '/user' })}
-              className="flex flex-col items-center gap-1 text-xs text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary hover:text-jeju-light-primary dark:hover:text-jeju-light-primary transition-colors"
+              className="flex flex-col items-center gap-1 text-xs text-jeju-light-text-secondary dark:text-jeju-dark-text-secondary hover:text-jeju-light-primary dark:hover:text-jeju-light-primary transition-colors shrink-0"
             >
               <div className="p-3 bg-jeju-light-background dark:bg-jeju-dark-background rounded-full">
                 <UserCog size={20} />
@@ -185,9 +190,13 @@ function UserInfoPage() {
                 onClick={() => handleSpotClick(spot.content_id)}
               >
                 <img
-                  src={spot.second_image || spot.first_image} // Fallback to first if second missing
+                  src={spot.second_image || spot.first_image || fallbackImage} // Fallback logic
                   alt={spot.title}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = fallbackImage;
+                  }}
                 />
               </div>
             ))}

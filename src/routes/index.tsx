@@ -154,6 +154,8 @@ function IndexPageContent() {
           )}
         </div>
       </div>
+
+      {/* (Removed local map button) */}
     </div>
   );
 }
