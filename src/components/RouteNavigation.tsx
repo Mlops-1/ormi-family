@@ -35,6 +35,7 @@ interface Props {
   onReset: () => void;
   isDogMode?: boolean;
   onSetStartToMyLoc?: () => void;
+  routeInfo?: { totalTime: number; totalDistance: number } | null;
 }
 
 interface SortableItemProps {
@@ -99,6 +100,7 @@ export default function RouteNavigation({
   onReset,
   isDogMode = false,
   onSetStartToMyLoc,
+  routeInfo,
 }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -115,6 +117,14 @@ export default function RouteNavigation({
       const newIndex = wayPoints.findIndex((p) => p.id === over.id);
       onWaypointsChange(arrayMove(wayPoints, oldIndex, newIndex));
     }
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `${minutes}분`;
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}시간 ${mins}분`;
   };
 
   return (
@@ -213,26 +223,46 @@ export default function RouteNavigation({
         )}
       </div>
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-between p-3 bg-gray-50">
-        <button
-          onClick={onReset}
-          className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
-        >
-          초기화
-        </button>
-        <button
-          onClick={onSearch}
-          disabled={!startPoint || !endPoint}
-          className={`flex items-center gap-1.5 px-4 py-2 text-white rounded-full text-sm font-bold shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors ${
-            isDogMode
-              ? 'bg-ormi-green-600 hover:bg-ormi-green-700'
-              : 'bg-orange-500 hover:bg-orange-600'
-          }`}
-        >
-          <Navigation size={16} />
-          Tmap 안내
-        </button>
+      {/* Route Info & Actions */}
+      <div
+        className={`flex items-center justify-between p-3 bg-gray-50 ${routeInfo ? 'pt-2' : ''}`}
+      >
+        {routeInfo && (
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1">
+              <span className="text-lg font-bold text-gray-900">
+                {formatTime(routeInfo.totalTime)}
+              </span>
+              <span className="text-sm text-gray-500">
+                ({(routeInfo.totalDistance / 1000).toFixed(1)}km)
+              </span>
+            </div>
+            <span className="text-[10px] text-gray-400">
+              자동차 기준 (실시간 교통)
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            onClick={onReset}
+            className="px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            초기화
+          </button>
+          <button
+            onClick={onSearch}
+            disabled={!startPoint || !endPoint}
+            className={`flex items-center gap-1.5 px-4 py-2 text-white rounded-full text-sm font-bold shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors ${
+              isDogMode
+                ? 'bg-ormi-green-600 hover:bg-ormi-green-700'
+                : 'bg-orange-500 hover:bg-orange-600'
+            }`}
+          >
+            <Navigation size={16} />
+            안내 시작
+          </button>
+        </div>
       </div>
     </div>
   );

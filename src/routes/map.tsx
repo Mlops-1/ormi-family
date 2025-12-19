@@ -61,6 +61,28 @@ function MapPageContent() {
   const [allSpots, setAllSpots] = useState<SpotCard[]>([]);
   const [isFetching, setIsFetching] = useState(false);
 
+  // Theme State for Marker/Route Color
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Route Info State (Time/Dist)
+  const [routeInfo, setRouteInfo] = useState<{
+    totalTime: number;
+    totalDistance: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    checkTheme();
+    const observer = new MutationObserver(checkTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   // Store Filter State
   const { selectedCategoryIds, selectedBarrierIds } = useFilterStore();
 
@@ -254,6 +276,34 @@ function MapPageContent() {
     }
   };
 
+  /* New Handler for Card "Get Directions" */
+  const handleNavigate = (spot: SpotCard) => {
+    if (!location.loaded || !location.coordinates) {
+      alert('현재 위치를 불러올 수 없습니다.');
+      return;
+    }
+
+    const start: RoutePoint = {
+      id: 'user-loc',
+      name: '내 위치',
+      type: 'start',
+      coordinates: location.coordinates,
+    };
+    const end: RoutePoint = {
+      id: spot.content_id.toString(),
+      name: spot.title,
+      type: 'end',
+      coordinates: { lat: spot.lat, lon: spot.lon },
+    };
+
+    setStartPoint(start);
+    setEndPoint(end);
+    setWayPoints([]);
+    setIsMapMode(true);
+    setShowRouteMenu(false);
+    calculateRoute(start, end, []);
+  };
+
   const calculateRoute = async (
     start: RoutePoint,
     end: RoutePoint,
@@ -282,6 +332,15 @@ function MapPageContent() {
         passList: passList || undefined,
       });
 
+      // Extract Summary Info (Properties of first feature)
+      if (res.features && res.features.length > 0) {
+        const props = res.features[0].properties;
+        setRouteInfo({
+          totalTime: props.totalTime || 0,
+          totalDistance: props.totalDistance || 0,
+        });
+      }
+
       const path: Coordinates[] = [];
       res.features.forEach((feature) => {
         if (feature.geometry.type === 'LineString') {
@@ -302,6 +361,7 @@ function MapPageContent() {
       calculateRoute(startPoint, endPoint, wayPoints);
     } else {
       setRoutePath(null);
+      setRouteInfo(null);
     }
   }, [startPoint, endPoint, wayPoints]);
 
@@ -310,6 +370,7 @@ function MapPageContent() {
     setEndPoint(null);
     setWayPoints([]);
     setRoutePath(null);
+    setRouteInfo(null);
   };
 
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
@@ -333,11 +394,7 @@ function MapPageContent() {
         routeEnd={endPoint?.coordinates}
         routeWaypoints={wayPoints.map((w) => w.coordinates)}
         routePath={routePath || undefined}
-        markerTheme={
-          document.documentElement.classList.contains('dark')
-            ? 'green'
-            : 'orange'
-        }
+        markerTheme={isDarkMode ? 'green' : 'orange'}
       />
 
       {/* Map Mode Return Button */}
@@ -488,6 +545,7 @@ function MapPageContent() {
                   }, 500);
                 }}
                 onReset={handleResetRoute}
+                routeInfo={routeInfo}
               />
             </div>
           )}
@@ -525,7 +583,7 @@ function MapPageContent() {
 
           {/* Bottom Card Area */}
           <div
-            className={`flex-1 flex flex-col justify-end pb-8 min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
+            className={`flex-1 flex flex-col justify-end min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
           >
             <AnimatePresence mode="wait">
               {!isMapMode && (
@@ -556,6 +614,7 @@ function MapPageContent() {
                       onToggleMapMode={() => setIsMapMode(true)}
                       onLoadMore={handleLoadMore}
                       selectedIndex={focusedSpotIndex} // Pass this to sync card with marker
+                      onNavigate={handleNavigate}
                     />
                   )}
 

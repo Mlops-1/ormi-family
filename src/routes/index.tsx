@@ -33,7 +33,7 @@ function LandingPage() {
 
   return (
     <div className="h-dvh w-full flex flex-col items-center justify-center bg-white transition-colors duration-500 overflow-hidden relative">
-      <motion.div
+      {/* <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -42,7 +42,7 @@ function LandingPage() {
         <p className="text-xl md:text-2xl font-bold text-orange-600">
           누구와 함께 가세요?
         </p>
-      </motion.div>
+      </motion.div> */}
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-12 w-full max-w-4xl px-4 md:px-6 z-10">
         {/* Toddler Option */}
