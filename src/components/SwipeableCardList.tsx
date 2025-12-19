@@ -15,8 +15,8 @@ interface Props {
   onIndexChange?: (index: number) => void;
   onToggleMapMode?: () => void;
   onLoadMore?: () => void;
-  selectedIndex?: number;
-  onNavigate?: (spot: SpotCard) => void;
+  selectedIndex?: number; // Added to support jumping to specific card
+  onNavigate?: () => void;
 }
 
 export default function SwipeableCardList({
@@ -255,7 +255,7 @@ export default function SwipeableCardList({
     : null;
 
   return (
-    <div className="w-full flex flex-col items-center h-full justify-end relative z-50 pointer-events-none">
+    <div className="w-full h-full flex flex-col justify-end relative">
       <AnimatePresence>
         {showLikeOverlay && (
           <motion.div
@@ -283,7 +283,7 @@ export default function SwipeableCardList({
         )}
       </AnimatePresence>
 
-      <div className="relative w-full h-[70vh] flex items-end justify-center overflow-visible perspective-1000 pointer-events-auto">
+      <div className="relative w-full h-full max-h-[85vh] flex items-end justify-center overflow-visible perspective-1000 pb-0">
         <AnimatePresence initial={false} custom={direction} mode="wait">
           <motion.div
             key={currentCard.content_id}
@@ -297,32 +297,22 @@ export default function SwipeableCardList({
             dragElastic={1}
             onDragEnd={handleDragEnd}
             style={{ x }}
-            className="absolute w-full h-full z-10 font-sans flex flex-col justify-end pointer-events-auto"
+            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[600px] z-10 font-sans bottom-0"
           >
-            {/* Card Container - Bottom Anchored & Full Width */}
-            <div className="bg-white dark:bg-slate-900 rounded-t-[40px] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)] border-t border-white/20 h-full flex flex-col relative overflow-hidden">
+            {/* Card Container */}
+            <div className="bg-white dark:bg-slate-900 rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
               {/* Drag Handle */}
-              <div
-                className="w-full flex justify-center pt-4 pb-2 shrink-0 bg-white dark:bg-slate-900 z-20 cursor-pointer"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
+              <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
                 <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full" />
               </div>
 
               {/* Scrollable Content Area */}
-              <div className="flex-1 overflow-y-auto no-scrollbar pb-24 px-6">
-                {/* Image Section - Collapsible */}
-                <motion.div
-                  initial={false}
-                  animate={{
-                    height: isExpanded ? 0 : 'auto',
-                    opacity: isExpanded ? 0 : 1,
-                    marginBottom: isExpanded ? 0 : 20,
-                  }}
-                  transition={{ duration: 0.4, ease: 'anticipate' }}
-                  className="overflow-hidden shrink-0 mt-2"
-                >
-                  <div className="relative aspect-4/3 w-full overflow-hidden rounded-[28px] shadow-sm">
+              <div className="flex-1 overflow-y-auto no-scrollbar pb-24">
+                {' '}
+                {/* pb-24 for absolute buttons space */}
+                {/* Image Section */}
+                <div className="px-4 pt-2 pb-4">
+                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[32px] shadow-sm">
                     <img
                       src={currentCard.first_image || fallbackImage}
                       alt={currentCard.title}
@@ -337,10 +327,9 @@ export default function SwipeableCardList({
                       {Math.round(currentCard.score * 100)}% 매칭
                     </div>
                   </div>
-                </motion.div>
-
+                </div>
                 {/* Title & Info */}
-                <div className="mb-6 shrink-0">
+                <div className="px-6 mb-4">
                   <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-2">
                     {currentCard.title}
                   </h3>
@@ -353,88 +342,39 @@ export default function SwipeableCardList({
                     {currentCard.addr_1}
                   </p>
                 </div>
-
-                {/* Review/Quote & Expand Trigger */}
+                {/* Review/Quote Box */}
                 {currentCard.reviews && currentCard.reviews.length > 0 && (
-                  <div className="mb-6 shrink-0">
-                    <div
-                      className="bg-gray-50 dark:bg-slate-800 rounded-3xl p-6 relative cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => !isExpanded && setIsExpanded(true)}
-                    >
+                  <div className="px-4 mb-6">
+                    <div className="bg-gray-50 dark:bg-slate-800 rounded-3xl p-6 relative">
                       {/* Quote Icon decorative */}
+                      <span className="absolute top-4 left-4 text-4xl text-gray-200 dark:text-gray-600 font-serif leading-none">
+                        "
+                      </span>
 
-                      <div
-                        className={`text-gray-700 dark:text-gray-300 text-lg font-medium leading-relaxed relative z-10 text-center break-keep ${!isExpanded ? 'line-clamp-3' : ''}`}
-                      >
-                        "{currentCard.reviews[0].detail}"
-                      </div>
-                      {!isExpanded && (
-                        <p className="text-center text-gray-400 text-sm mt-4 animate-pulse">
-                          주말 나들이 장소로 추천드립니다.
-                        </p>
-                      )}
+                      <p className="text-gray-700 dark:text-gray-300 text-lg font-medium leading-relaxed relative z-10 pt-2 px-2 text-center break-keep">
+                        {currentCard.reviews[0].detail.length > 50
+                          ? `"${currentCard.reviews[0].detail.slice(0, 50)}..."`
+                          : `"${currentCard.reviews[0].detail}"`}
+                      </p>
+                      <p className="text-center text-gray-400 text-sm mt-3">
+                        주말 나들이 장소로 추천드립니다.
+                      </p>
                     </div>
-
-                    {/* Extended Reviews List (Visible when expanded) */}
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-4 flex flex-col gap-3"
-                        >
-                          <div className="flex justify-between items-center px-1 mb-2">
-                            <h4 className="font-bold text-gray-900 dark:text-white">
-                              전체 리뷰
-                            </h4>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsExpanded(false);
-                              }}
-                              className="text-xs text-orange-500 font-bold px-3 py-1 bg-orange-50 rounded-full"
-                            >
-                              접기
-                            </button>
-                          </div>
-                          {currentCard.reviews.slice(1).map((review) => (
-                            <div
-                              key={review.review_id}
-                              className="bg-white dark:bg-slate-800 p-4 rounded-2xl text-sm border border-gray-100 dark:border-slate-700 shadow-sm"
-                            >
-                              <div className="text-xs text-gray-400 mb-1">
-                                {new Date(review.created_at).toLocaleDateString(
-                                  'ko-KR',
-                                  { month: 'long', day: 'numeric' }
-                                )}
-                              </div>
-                              <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                                {review.detail}
-                              </p>
-                            </div>
-                          ))}
-                          {/* Dummy spacer for scrolling */}
-                          <div className="h-10" />
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </div>
                 )}
-
                 {/* Accessibility Grid */}
-                <div className="pb-6 shrink-0">
+                <div className="px-6 pb-6">
                   <AccessibilityInfo spot={currentCard} />
                 </div>
               </div>
 
-              {/* Bottom Fixed Buttons (Gradient Overlay) */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 pt-12 z-30">
+              {/* Bottom Fixed Buttons */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 pt-10">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // prevent drag
-                      onNavigate?.(currentCard);
+                      onNavigate?.();
                     }}
                     className="flex-1 h-14 bg-orange-500 hover:bg-orange-600 active:scale-95 transition-all rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-lg shadow-orange-500/30"
                   >

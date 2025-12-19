@@ -5,19 +5,21 @@ import BarrierFreeFilter from '@/components/BarrierFreeFilter';
 import CategoryFilter from '@/components/CategoryFilter';
 import FavoritesBottomSheet from '@/components/FavoritesBottomSheet';
 import GeoLocation from '@/components/GeoLocation';
-import MapSideFilters from '@/components/MapSideFilters';
 import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import RouteMenu, { type RouteMenuOption } from '@/components/RouteMenu';
 import RouteNavigation, { type RoutePoint } from '@/components/RouteNavigation';
+import SpotInteractionSheet, {
+  type RouteAction,
+} from '@/components/SpotInteractionSheet';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
+import { BARRIER_CONFIG, CATEGORY_CONFIG } from '@/constants/filterConfig';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
-import { useFilterStore } from '@/store/filterStore';
+import { INITIAL_CATEGORY_IDS, useFilterStore } from '@/store/filterStore';
 import type { Coordinates } from '@/types/geo';
 import type { AccessibilityType, SpotCard } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
@@ -51,11 +53,15 @@ function MapPageContent() {
   >([]);
 
   // Routing State
-  const [showRouteMenu, setShowRouteMenu] = useState(false);
+
   const [startPoint, setStartPoint] = useState<RoutePoint | null>(null);
   const [endPoint, setEndPoint] = useState<RoutePoint | null>(null);
   const [wayPoints, setWayPoints] = useState<RoutePoint[]>([]);
   const [routePath, setRoutePath] = useState<Coordinates[] | null>(null);
+  const [routeSummary, setRouteSummary] = useState<{
+    distance: number;
+    time: number;
+  } | null>(null);
 
   // Infinite Scroll State
   const [allSpots, setAllSpots] = useState<SpotCard[]>([]);
@@ -63,12 +69,6 @@ function MapPageContent() {
 
   // Theme State for Marker/Route Color
   const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // Route Info State (Time/Dist)
-  const [routeInfo, setRouteInfo] = useState<{
-    totalTime: number;
-    totalDistance: number;
-  } | null>(null);
 
   useEffect(() => {
     const checkTheme = () => {
@@ -84,7 +84,14 @@ function MapPageContent() {
   }, []);
 
   // Store Filter State
-  const { selectedCategoryIds, selectedBarrierIds } = useFilterStore();
+  const {
+    selectedCategoryIds,
+    selectedBarrierIds,
+    setSelectedCategoryIds,
+    setSelectedBarrierIds,
+    categoryOrderedIds,
+    barrierOrderedIds,
+  } = useFilterStore();
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
@@ -196,17 +203,28 @@ function MapPageContent() {
 
   const handleMarkerClick = (index: number) => {
     setFocusedSpotIndex(index);
-    if (!isMapMode) {
-      // If in card mode, clicking marker just focuses and maybe opens map mode?
-      // User requirement: "1. Current: ... returns to card."
-      // So if I am in MapMode, clicking marker should open menu.
-      // If I am NOT in MapMode, I am in Card Mode. Clicking marker usually means swiping to that card.
-      setIsMapMode(false);
-      return;
-    }
+    // Always switch to Map Mode to show Header and Menu
+    setIsMapMode(true);
+  };
 
-    // In Map Mode -> Open Menu
-    setShowRouteMenu(true);
+  const getDistanceFromLatLonInMeters = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ) => {
+    const R = 6371; // Radius of the earth in km
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = R * c; // Distance in km
+    return Math.floor(d * 1000); // Meters
   };
 
   // Route Logic
@@ -221,13 +239,14 @@ function MapPageContent() {
     };
   };
 
-  const handleRouteOptionSelect = async (option: RouteMenuOption) => {
+  const handleRouteOptionSelect = async (action: RouteAction) => {
     const selectedSpot = getSelectedSpotPoint();
     if (!selectedSpot) return;
 
-    setShowRouteMenu(false);
+    // Note: We don't need setShowRouteMenu anymore as the sheet closes when we initiate action or explicitly close
+    // But logically, if we start routing, isRoutingMode becomes true, and the sheet might hide if we base it on !isRoutingMode
 
-    if (option === 'fast') {
+    if (action === 'fast') {
       // Fast Route: User Loc -> Selected Spot
       if (!location.loaded || !location.coordinates) {
         alert('현재 위치를 불러올 수 없어 빠른 길찾기를 사용할 수 없습니다.');
@@ -249,9 +268,9 @@ function MapPageContent() {
       // Auto fetch triggered by effect or we call explicitly?
       // Better to trigger explicitly to be sure.
       calculateRoute(start, end, []);
-    } else if (option === 'start') {
+    } else if (action === 'start') {
       setStartPoint({ ...selectedSpot, type: 'start' });
-    } else if (option === 'end') {
+    } else if (action === 'end') {
       // Smart Logic: If End exists, push old End to Waypoints (Extend Trip)
       if (endPoint) {
         const oldEndAsWaypoint: RoutePoint = {
@@ -268,40 +287,12 @@ function MapPageContent() {
         }
       }
       setEndPoint({ ...selectedSpot, type: 'end' });
-    } else if (option === 'waypoint') {
+    } else if (action === 'waypoint') {
       setWayPoints((prev) => [
         ...prev,
         { ...selectedSpot, type: 'waypoint', id: `wp-${Date.now()}` },
       ]);
     }
-  };
-
-  /* New Handler for Card "Get Directions" */
-  const handleNavigate = (spot: SpotCard) => {
-    if (!location.loaded || !location.coordinates) {
-      alert('현재 위치를 불러올 수 없습니다.');
-      return;
-    }
-
-    const start: RoutePoint = {
-      id: 'user-loc',
-      name: '내 위치',
-      type: 'start',
-      coordinates: location.coordinates,
-    };
-    const end: RoutePoint = {
-      id: spot.content_id.toString(),
-      name: spot.title,
-      type: 'end',
-      coordinates: { lat: spot.lat, lon: spot.lon },
-    };
-
-    setStartPoint(start);
-    setEndPoint(end);
-    setWayPoints([]);
-    setIsMapMode(true);
-    setShowRouteMenu(false);
-    calculateRoute(start, end, []);
   };
 
   const calculateRoute = async (
@@ -332,15 +323,6 @@ function MapPageContent() {
         passList: passList || undefined,
       });
 
-      // Extract Summary Info (Properties of first feature)
-      if (res.features && res.features.length > 0) {
-        const props = res.features[0].properties;
-        setRouteInfo({
-          totalTime: props.totalTime || 0,
-          totalDistance: props.totalDistance || 0,
-        });
-      }
-
       const path: Coordinates[] = [];
       res.features.forEach((feature) => {
         if (feature.geometry.type === 'LineString') {
@@ -349,6 +331,17 @@ function MapPageContent() {
         }
       });
       setRoutePath(path);
+
+      // Extract Summary (Time/Distance)
+      const props = res.features[0].properties as any;
+      if (props.totalTime || props.totalDistance) {
+        setRouteSummary({
+          time: props.totalTime || 0, // seconds
+          distance: props.totalDistance || 0, // meters
+        });
+      } else {
+        setRouteSummary(null);
+      }
     } catch (e) {
       console.error('Route Error:', e);
       alert('길찾기 경로를 계산할 수 없습니다.');
@@ -361,7 +354,6 @@ function MapPageContent() {
       calculateRoute(startPoint, endPoint, wayPoints);
     } else {
       setRoutePath(null);
-      setRouteInfo(null);
     }
   }, [startPoint, endPoint, wayPoints]);
 
@@ -370,7 +362,7 @@ function MapPageContent() {
     setEndPoint(null);
     setWayPoints([]);
     setRoutePath(null);
-    setRouteInfo(null);
+    setRouteSummary(null);
   };
 
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
@@ -397,17 +389,7 @@ function MapPageContent() {
         markerTheme={isDarkMode ? 'green' : 'orange'}
       />
 
-      {/* Map Mode Return Button */}
-      {isMapMode && (
-        <div className="absolute bottom-6 right-6 z-50 pointer-events-auto">
-          <button
-            onClick={() => setIsMapMode(false)}
-            className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl shadow-lg transition-transform active:scale-95 bg-orange-500 dark:bg-ormi-green-600 text-white"
-          >
-            <span className="font-bold text-sm">스와이프 모드로 변경</span>
-          </button>
-        </div>
-      )}
+      {/* Map Mode Return Button - Show only if Sheet is NOT visible to avoid overlap/redundancy */}
 
       {/* Overlay Content */}
       <div className="absolute inset-0 w-full h-full pointer-events-none flex justify-center">
@@ -442,7 +424,8 @@ function MapPageContent() {
           {/* Floating Top Navigation */}
           <div
             className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
-              isMapMode
+              // Hide if Routing Mode OR Map Mode (per user request to hide white nav bar when piano keys are visible)
+              isRoutingMode || isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
             }`}
@@ -451,51 +434,137 @@ function MapPageContent() {
             <div className="pointer-events-auto flex-1 min-w-0 max-w-3xl mx-auto z-40">
               <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
                 <div className="pointer-events-auto shrink-0 z-50">
-                  <CategoryFilter />
+                  {!isMapMode && <CategoryFilter />}
                 </div>
 
-                {(!isRoutingMode || !isMapMode) && (
-                  <>
-                    <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                {/* In Map Mode, we only show GeoLocation (Search). Weather/Mode are hidden per user request to 'hide weather nav bar' but keep search implied by Image 1 */}
+                {/* GeoLocation: Always visible */}
+                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                    <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
-                      <GeoLocation
-                        coordinates={effectiveCoordinates}
-                        onLocationChange={handleLocationChange}
-                        onHelpClick={() => setShowOnboarding(true)}
-                        onUserClick={() => navigate({ to: '/user-info' })}
-                        user={profile}
-                        compact={true}
-                        hideUserIcon={true} // Passing new prop
-                      />
-                    </div>
+                <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
+                  <GeoLocation
+                    coordinates={effectiveCoordinates}
+                    onLocationChange={handleLocationChange}
+                    onHelpClick={() => setShowOnboarding(true)}
+                    onUserClick={() => navigate({ to: '/user-info' })}
+                    user={profile}
+                    compact={true}
+                  />
+                </div>
 
-                    <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                {/* Weather & Mode: Always Visible (restored) */}
+                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                    <div className="shrink-0 flex justify-center">
-                      <WeatherWidget coordinates={effectiveCoordinates} />
-                    </div>
+                <div className="shrink-0 flex justify-center">
+                  <WeatherWidget coordinates={effectiveCoordinates} />
+                </div>
 
-                    <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                    <div className="shrink-0">
-                      <ModeToggle />
-                    </div>
+                <div className="shrink-0">
+                  <ModeToggle />
+                </div>
 
-                    <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
-                  </>
-                )}
+                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
                 <div className="pointer-events-auto shrink-0 z-50 ml-auto">
-                  <BarrierFreeFilter />
+                  {!isMapMode && <BarrierFreeFilter />}
                 </div>
               </div>
             </div>
           </div>
 
-          <MapSideFilters
-            isVisible={isMapMode && !isRoutingMode && !showRouteMenu}
-          />
+          {/* Side Piano Key Filters (Visible only in Map Mode & Not Routing) */}
+          {isMapMode && !isRoutingMode && (
+            <>
+              {/* Left Side: Category Config */}
+              <div className="absolute top-28 left-0 z-40 flex flex-col gap-3 pointer-events-auto">
+                {categoryOrderedIds.map((id) => {
+                  const config = CATEGORY_CONFIG[id];
+                  const isActive = selectedCategoryIds.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      onClick={() =>
+                        setSelectedCategoryIds(
+                          isActive
+                            ? selectedCategoryIds.filter((cid) => cid !== id)
+                            : [...selectedCategoryIds, id]
+                        )
+                      }
+                      className={`flex items-center gap-2 pl-4 pr-3 py-3 rounded-r-2xl shadow-md transition-all duration-300 ${
+                        isActive
+                          ? 'bg-orange-500 dark:bg-ormi-green-600 text-white translate-x-0'
+                          : 'bg-white text-gray-400 -translate-x-1 hover:translate-x-0'
+                      }`}
+                    >
+                      <span className="shrink-0">{config.icon}</span>
+                      <span className="font-bold text-sm hidden md:block whitespace-nowrap">
+                        {config.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right Side: Barrier Config */}
+              <div className="absolute top-28 right-0 z-40 flex flex-col gap-3 pointer-events-auto">
+                {barrierOrderedIds.map((id) => {
+                  const config = BARRIER_CONFIG[id];
+                  const isActive = selectedBarrierIds.includes(id);
+                  return (
+                    <button
+                      key={id}
+                      onClick={() =>
+                        setSelectedBarrierIds(
+                          isActive
+                            ? selectedBarrierIds.filter((bid) => bid !== id)
+                            : [...selectedBarrierIds, id]
+                        )
+                      }
+                      className={`flex items-center gap-2 pr-4 pl-3 py-3 rounded-l-2xl shadow-md transition-all duration-300 ${
+                        isActive
+                          ? 'bg-orange-500 dark:bg-ormi-green-600 text-white translate-x-0'
+                          : 'bg-white text-gray-400 translate-x-1 hover:translate-x-0'
+                      }`}
+                    >
+                      {/* Icon only on Mobile, Label on Desktop or nice layout? 
+                          Image 1 shows Icons only (stacked).
+                          Let's stick to Icons to save space on mobile map. */}
+                      <span className="shrink-0">{config.icon}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Spot Interaction Sheet (Combined Header & Route Menu) */}
+          {isMapMode && displaySpots[focusedSpotIndex] && (
+            <div className="pointer-events-auto">
+              <SpotInteractionSheet
+                spot={displaySpots[focusedSpotIndex]}
+                distance={
+                  effectiveCoordinates
+                    ? getDistanceFromLatLonInMeters(
+                        effectiveCoordinates.lat,
+                        effectiveCoordinates.lon,
+                        displaySpots[focusedSpotIndex].lat,
+                        displaySpots[focusedSpotIndex].lon
+                      )
+                    : undefined
+                }
+                markerTheme={isDarkMode ? 'green' : 'orange'}
+                onClose={() => {
+                  setFocusedSpotIndex(-1);
+                }}
+                onViewCard={() => setIsMapMode(false)}
+                onRouteSelect={handleRouteOptionSelect}
+                hasStart={!!startPoint}
+                hasEnd={!!endPoint}
+              />
+            </div>
+          )}
 
           {/* Route Navigation Header (Overlay) */}
           {isRoutingMode && isMapMode && (
@@ -504,6 +573,7 @@ function MapPageContent() {
                 startPoint={startPoint}
                 endPoint={endPoint}
                 wayPoints={wayPoints}
+                summary={routeSummary}
                 onWaypointsChange={setWayPoints}
                 isDogMode={document.documentElement.classList.contains('dark')}
                 onSetStartToMyLoc={() => {
@@ -545,36 +615,43 @@ function MapPageContent() {
                   }, 500);
                 }}
                 onReset={handleResetRoute}
-                routeInfo={routeInfo}
               />
             </div>
           )}
 
-          {/* Route Menu (Bottom Sheet/Popup) */}
-          <AnimatePresence>
-            {showRouteMenu && isMapMode && (
-              <motion.div
-                initial={{ opacity: 0, y: 100 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 100 }}
-                className="absolute bottom-24 left-4 right-4 z-50 pointer-events-auto"
-              >
-                <RouteMenu
-                  onSelect={handleRouteOptionSelect}
-                  hasStart={!!startPoint}
-                  hasEnd={!!endPoint}
-                />
-                <button
-                  onClick={() => setShowRouteMenu(false)}
-                  className="mt-4 w-full bg-white dark:bg-white py-3 rounded-xl shadow-lg font-bold text-gray-600 dark:text-gray-800 border border-gray-100 dark:border-gray-200"
-                >
-                  취소
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <FavoritesBottomSheet
+            onSpotClick={(spot) => {
+              // 1. Ensure spot is in allSpots
+              let updatedAllSpots = allSpots;
+              const exists = allSpots.find(
+                (s) => s.content_id === spot.content_id
+              );
+              if (!exists) {
+                updatedAllSpots = [spot, ...allSpots];
+                setAllSpots(updatedAllSpots);
+              }
 
-          <FavoritesBottomSheet />
+              // 2. Reset Filters to ensure spot shows up
+              setSelectedCategoryIds(INITIAL_CATEGORY_IDS);
+              setSelectedBarrierIds([]);
+
+              // 3. Switch Mode
+              setIsMapMode(false);
+
+              // 4. Set Focus Index
+              // Since filters are reset, displaySpots will eventually equal allSpots (filtered by barrier).
+              // We need to find the index of this spot in the new list.
+              // Logic: displaySpots updates next render.
+              // For now, we set index based on current knowledge or force 0 if we prepended.
+              // A safer way is to rely on content_id matching, but SwipeableCardList takes numeric index.
+              // If we just added it to the TOP, it's 0.
+              // If it existed, we need to find it.
+              const idx = updatedAllSpots.findIndex(
+                (s) => s.content_id === spot.content_id
+              );
+              setFocusedSpotIndex(idx !== -1 ? idx : 0);
+            }}
+          />
 
           <OnboardingOverlay
             isVisible={showOnboarding}
@@ -613,8 +690,12 @@ function MapPageContent() {
                       onIndexChange={handleIndexChange}
                       onToggleMapMode={() => setIsMapMode(true)}
                       onLoadMore={handleLoadMore}
-                      selectedIndex={focusedSpotIndex} // Pass this to sync card with marker
-                      onNavigate={handleNavigate}
+                      selectedIndex={
+                        focusedSpotIndex === -1 ? 0 : focusedSpotIndex
+                      } // Handle -1 case
+                      onNavigate={() => {
+                        setIsMapMode(true);
+                      }}
                     />
                   )}
 

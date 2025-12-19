@@ -23,20 +23,33 @@ export const createGreenMarker = () => {
   `;
 };
 
-export const createSpotMarker = (imageUrl: string, isActive: boolean) => {
+export const createSpotMarker = (
+  imageUrl: string,
+  isActive: boolean,
+  theme: 'orange' | 'green' = 'orange'
+) => {
   const size = isActive ? '60px' : '48px'; // Bigger when active
   const zIndex = isActive ? 50 : 20;
-  const border = isActive ? '3px solid #FF5000' : '2px solid white';
 
-  // Using a div-based HTML marker for easier image handling and hover effects via Tailwind classes
-  // The 'group' class allows us to style interaction
-  // We include a transparent hit area (padding) to prevent flickering
+  const activeColor = theme === 'green' ? '#10B981' : '#FF5000';
+  const border = isActive ? `3px solid ${activeColor}` : '2px solid white';
+  const arrowColor = isActive ? activeColor : 'white';
+
+  // Pulse ring animation for active state or hover
+  // Always render but control opacity
+  const pulseLoop = `
+    <div class="${isActive ? 'opacity-60' : 'opacity-0 group-hover:opacity-60'} transition-opacity duration-300" 
+         style="position: absolute; inset: -4px; border-radius: 50%; border: 2px solid ${activeColor}; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; pointer-events: none;">
+    </div>
+  `;
+
   return `
     <div style="position: relative; width: ${size}; height: ${size}; z-index: ${zIndex}; cursor: pointer; transform-origin: bottom center;" class="group">
+      ${pulseLoop}
       <div class="absolute inset-0 rounded-full shadow-lg overflow-hidden transition-transform duration-200 group-hover:scale-110" style="background-color: white; border: ${border};">
         <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='https://via.placeholder.com/150?text=No+Image'"/>
       </div>
-      <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid ${isActive ? '#FF5000' : 'white'}; filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));"></div>
+      <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid ${arrowColor}; filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));"></div>
     </div>
   `;
 };

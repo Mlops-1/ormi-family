@@ -73,8 +73,8 @@ export default function ModeToggle() {
         <Lottie
           lottieRef={lottieRef}
           animationData={currentAnimation}
-          loop={true}
-          autoplay={true} // "Static state... play when pressed"
+          loop={false}
+          autoplay={false} // "Static state... play when pressed"
           style={{ width: '100%', height: '100%' }}
         />
       </div>

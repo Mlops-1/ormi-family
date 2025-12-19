@@ -119,24 +119,21 @@
   --color-text-link-hover: var(--color-primary-variant);
 }
 
-/* Sims Plumbob Animation */
-@keyframes sims-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(45deg);
-  }
-  50% {
-    transform: translateY(-12px) rotate(45deg);
+@layer base {
+  to {
+    transform: rotate(360deg);
   }
 }
 
+/* Sims Plumbob Animation */
+@keyframes sims-float {
+  0%, 100% { transform: translateY(0) rotate(45deg); }
+  50% { transform: translateY(-12px) rotate(45deg); }
+}
+
 @keyframes sims-spin {
-  0% {
-    transform: rotateY(0deg);
-  }
-  100% {
-    transform: rotateY(360deg);
-  }
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
 }
 
 .sims-plumbob {
@@ -151,7 +148,7 @@
 /* Inner spinner if needed, for now just float diamond */
 .sims-plumbob.orange {
   background: radial-gradient(circle at 35% 35%, #ffffff, #fb923c, #c2410c);
-  color: #ea580c;
+  color: #ea580c; 
   border: 1px solid #fff;
 }
 
@@ -160,8 +157,6 @@
   color: #16a34a;
   border: 1px solid #fff;
 }
-
-@layer base {
   * {
     @apply box-border;
   }

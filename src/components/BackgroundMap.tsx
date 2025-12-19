@@ -30,11 +30,10 @@ interface CustomMarker extends Tmapv2.Marker {
 }
 
 const createSimsMarker = (theme: 'orange' | 'green') => {
-  const color = theme === 'green' ? '#10B981' : '#FF8A00';
-  // Simple 2D Diamond SVG
+  const color = theme === 'green' ? '#10B981' : '#FF6B00';
   return `
-    <div style="width: 24px; height: 24px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
-      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
         <path d="M12 2L2 12L12 22L22 12L12 2Z" fill="${color}" stroke="white" stroke-width="2"/>
       </svg>
     </div>
@@ -136,8 +135,11 @@ export default function BackgroundMap({
       const marker = new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(spot.lat, spot.lon),
         map: mapInstance.current!,
-        title: spot.title,
-        iconHTML: createSpotMarker(spot.first_image || fallbackImage, false),
+        iconHTML: createSpotMarker(
+          spot.first_image || fallbackImage,
+          false,
+          markerTheme
+        ),
       });
 
       marker.addListener('click', () => {
@@ -152,7 +154,7 @@ export default function BackgroundMap({
 
       spotMarkersRef.current.push(marker);
     });
-  }, [spots, isLoaded]);
+  }, [spots, isLoaded, markerTheme]);
 
   // Update Active Spot Marker State
   useEffect(() => {
@@ -163,7 +165,11 @@ export default function BackgroundMap({
       const isActive = idx === currentSpotIndex;
       if (typeof marker.setIconHTML === 'function') {
         marker.setIconHTML(
-          createSpotMarker(spot.first_image || fallbackImage, isActive)
+          createSpotMarker(
+            spot.first_image || fallbackImage,
+            isActive,
+            markerTheme
+          )
         );
       }
       if (isActive && typeof marker.setZIndex === 'function') {
@@ -177,7 +183,7 @@ export default function BackgroundMap({
         marker.setZIndex(20);
       }
     });
-  }, [currentSpotIndex, isMapMode, spots]);
+  }, [currentSpotIndex, isMapMode, spots, markerTheme]);
 
   // User Location Marker
   useEffect(() => {
@@ -212,6 +218,10 @@ export default function BackgroundMap({
       height: isDog ? '130%' : '70%',
       margin: '0 auto', // Center
       filter: filterStyle,
+      transform:
+        routePath && routePath.length > 1 && routePath[1].lon < routePath[0].lon
+          ? 'scaleX(-1)'
+          : 'none',
       transition: 'all 0.3s ease', // Smooth transition
     };
 
@@ -257,7 +267,6 @@ export default function BackgroundMap({
         // Increased container size to 100px to accommodate larger dog
         iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
         zIndex: 999,
-        title: '내 위치',
       });
       userMarkerRef.current = marker;
 
@@ -281,7 +290,7 @@ export default function BackgroundMap({
 
       mountLottie();
     }
-  }, [userLocation, isLoaded, routeStart, markerTheme]);
+  }, [userLocation, isLoaded, routeStart, markerTheme, routePath]);
 
   // Reference Location Marker
   useEffect(() => {
@@ -308,7 +317,6 @@ export default function BackgroundMap({
           map: mapInstance.current!,
           iconHTML: createOrangeMarker(false),
           zIndex: 4,
-          title: '검색 기준 위치',
         });
         referenceMarkerRef.current = marker;
       }
@@ -350,28 +358,26 @@ export default function BackgroundMap({
       });
     };
 
-    // 1. Draw Path Immediate
+    // 1. Draw Path
     if (routePolylineRef.current) {
       routePolylineRef.current.setMap(null);
       routePolylineRef.current = null;
     }
 
     if (routePath && routePath.length > 0) {
-      const fullPath = routePath.map(
-        (p) => new window.Tmapv2.LatLng(p.lat, p.lon)
-      );
-
-      const bounds = new window.Tmapv2.LatLngBounds();
-      fullPath.forEach((p) => bounds.extend(p));
-      map.fitBounds(bounds);
-
+      const path = routePath.map((p) => new window.Tmapv2.LatLng(p.lat, p.lon));
       routePolylineRef.current = new window.Tmapv2.Polyline({
-        path: fullPath, // Set full path immediately
-        strokeColor: markerTheme === 'green' ? '#10B981' : '#FF6B00',
+        path: path,
+        strokeColor: markerTheme === 'green' ? '#10B981' : '#FF6B00', // Green for Dog Mode, Orange for others
         strokeWeight: 6,
         strokeOpacity: 0.9,
         map: map,
       });
+
+      // Fit bounds to show route
+      const bounds = new window.Tmapv2.LatLngBounds();
+      path.forEach((p) => bounds.extend(p));
+      map.fitBounds(bounds);
     }
 
     // 2. Start Marker
@@ -384,9 +390,8 @@ export default function BackgroundMap({
         position: new window.Tmapv2.LatLng(routeStart.lat, routeStart.lon),
         map: map,
         iconHTML: createSimsMarker(markerTheme),
-        title: '출발',
         zIndex: 210,
-        offset: new window.Tmapv2.Point(12, 12), // Center offset for 24x24
+        offset: new window.Tmapv2.Point(15, 15), // Center offset for 30x30
       });
     }
 
@@ -400,8 +405,8 @@ export default function BackgroundMap({
         position: new window.Tmapv2.LatLng(routeEnd.lat, routeEnd.lon),
         map: map,
         iconHTML: createSimsMarker(markerTheme),
-        title: '도착',
         zIndex: 210,
+        offset: new window.Tmapv2.Point(15, 15), // Center offset for 30x30
       });
     }
 

@@ -40,7 +40,7 @@ export const fetchRoute = async (
       reqCoordType: 'WGS84GEO',
       resCoordType: 'WGS84GEO',
       searchOption: '0', // 0: Recommended
-      trafficInfo: 'Y',
+      trafficInfo: 'N',
     },
     {
       headers: {

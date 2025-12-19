@@ -1,17 +1,20 @@
 import { FavoritesAPI } from '@/api/favorites';
 import { TEMP_USER_ID } from '@/constants/temp_user';
-import { SpotCategory, type SpotCard } from '@/types/spot';
+import { type SpotCard } from '@/types/spot';
 import { AnimatePresence, motion, useDragControls } from 'framer-motion';
 import { ChevronUp, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-const FILTERS = ['전체', ...Object.values(SpotCategory)];
+// Initial Category Options
 
-export default function FavoritesBottomSheet() {
+export default function FavoritesBottomSheet({
+  onSpotClick,
+}: {
+  onSpotClick?: (spot: SpotCard) => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const [favorites, setFavorites] = useState<SpotCard[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState('전체');
   const controls = useDragControls();
 
   const fetchFavorites = async () => {
@@ -47,17 +50,8 @@ export default function FavoritesBottomSheet() {
   const groupedFavorites = useMemo(() => {
     if (!favorites) return {};
 
-    // 1. Filter
-    const filtered = favorites.filter((item) => {
-      if (selectedFilter === '전체') return true;
-      // Map simple filter names to category values if needed, or match directly
-      // Assuming category_1 holds the type like '카페', '식당' etc.
-      // Adjust matching logic based on actual data content.
-      return item.category_1?.includes(selectedFilter);
-    });
-
-    // 2. Sort by Date Desc
-    const sorted = [...filtered].sort(
+    // 1. Sort by Date Desc
+    const sorted = [...favorites].sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
@@ -74,7 +68,7 @@ export default function FavoritesBottomSheet() {
     });
 
     return groups;
-  }, [favorites, selectedFilter]);
+  }, [favorites]);
 
   return (
     <>
@@ -85,12 +79,19 @@ export default function FavoritesBottomSheet() {
             onClick={() => setIsOpen(true)}
             initial={{ y: 20 }}
             animate={{ y: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9, y: 10 }}
-            // Curtain Handle Style
-            className="w-40 h-10 bg-orange-500 dark:bg-ormi-green-600 rounded-t-full shadow-[0_-4px_15px_rgba(0,0,0,0.15)] flex items-center justify-center cursor-pointer pointer-events-auto border-t border-white/20"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95, y: 5 }}
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            onDragEnd={(e, { offset, velocity }) => {
+              if (offset.y < -20 || velocity.y < -10) {
+                setIsOpen(true);
+              }
+            }}
+            // Curtain Handle Style - Restored
+            className="w-52 h-7 bg-orange-500 dark:bg-ormi-green-600 rounded-t-2xl shadow-[0_-2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer pointer-events-auto border-t border-white/20"
           >
-            <ChevronUp className="text-white w-6 h-6 animate-pulse" />
+            <ChevronUp className="text-white w-5 h-5 animate-pulse" />
           </motion.div>
         </motion.div>
       )}
@@ -134,23 +135,6 @@ export default function FavoritesBottomSheet() {
               </button>
             </div>
 
-            {/* Filter Bar */}
-            <div className="px-4 pb-2 shrink-0 overflow-x-auto no-scrollbar flex gap-2 border-b border-gray-100 dark:border-slate-800">
-              {FILTERS.map((filter) => (
-                <button
-                  key={filter}
-                  onClick={() => setSelectedFilter(filter)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                    selectedFilter === filter
-                      ? 'bg-gray-800 text-white dark:bg-white dark:text-slate-900'
-                      : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400'
-                  }`}
-                >
-                  {filter}
-                </button>
-              ))}
-            </div>
-
             {/* Content List - Gallery Grid */}
             <div className="flex-1 overflow-y-auto p-1 bg-white dark:bg-slate-900">
               {isLoading && favorites.length === 0 ? (
@@ -176,6 +160,10 @@ export default function FavoritesBottomSheet() {
                             onClick={() => {
                               // Optional: navigate to spot or show detail
                               console.log('Clicked', spot.title);
+                              if (onSpotClick) {
+                                onSpotClick(spot);
+                                setIsOpen(false);
+                              }
                             }}
                           >
                             <img

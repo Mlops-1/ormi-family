@@ -7,6 +7,7 @@ interface FilterStore {
   // Barrier Free
   barrierOrderedIds: AccessibilityType[];
   selectedBarrierIds: AccessibilityType[];
+  setSelectedBarrierIds: (ids: AccessibilityType[]) => void;
   setBarrierOrderedIds: (ids: AccessibilityType[]) => void;
   toggleBarrierId: (id: AccessibilityType) => void;
   isBarrierOpen: boolean;
@@ -15,6 +16,7 @@ interface FilterStore {
   // Category
   categoryOrderedIds: SpotCategoryType[];
   selectedCategoryIds: SpotCategoryType[];
+  setSelectedCategoryIds: (ids: SpotCategoryType[]) => void;
   setCategoryOrderedIds: (ids: SpotCategoryType[]) => void;
   toggleCategoryId: (id: SpotCategoryType) => void;
   isCategoryOpen: boolean;
@@ -47,6 +49,7 @@ export const useFilterStore = create<FilterStore>()(
       // Barrier Free State
       barrierOrderedIds: INITIAL_BARRIER_IDS,
       selectedBarrierIds: [], // Default empty
+      setSelectedBarrierIds: (ids) => set({ selectedBarrierIds: ids }),
       setBarrierOrderedIds: (ids) => set({ barrierOrderedIds: ids }),
       toggleBarrierId: (id) =>
         set((state) => {
@@ -71,6 +74,7 @@ export const useFilterStore = create<FilterStore>()(
         SpotCategory.ACCOMMODATION,
       ], // Default all selected? Or user said "Category basic open" -> usually means "All selected" or "None filtered"?
       // Map init state was all 4.
+      setSelectedCategoryIds: (ids) => set({ selectedCategoryIds: ids }),
       setCategoryOrderedIds: (ids) => set({ categoryOrderedIds: ids }),
       toggleCategoryId: (id) =>
         set((state) => {
@@ -83,7 +87,7 @@ export const useFilterStore = create<FilterStore>()(
             selectedCategoryIds: newSelected,
           };
         }),
-      isCategoryOpen: true,
+      isCategoryOpen: false,
       setCategoryOpen: (isOpen) => set({ isCategoryOpen: isOpen }),
     }),
     {
