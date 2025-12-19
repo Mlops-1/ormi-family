@@ -312,7 +312,10 @@ function MapPageContent() {
             Math.abs(w.coordinates.lon - end.coordinates.lon) < 0.0001;
           return !isStart && !isEnd;
         })
-        .map((w) => `${w.coordinates.lon},${w.coordinates.lat}`)
+        .map(
+          (w) =>
+            `${w.coordinates.lon.toFixed(7)},${w.coordinates.lat.toFixed(7)}`
+        )
         .join('_');
 
       const res = await fetchRoute({
@@ -333,7 +336,7 @@ function MapPageContent() {
       setRoutePath(path);
 
       // Extract Summary (Time/Distance)
-      const props = res.features[0].properties as any;
+      const props = res.features[0].properties;
       if (props.totalTime || props.totalDistance) {
         setRouteSummary({
           time: props.totalTime || 0, // seconds
@@ -424,8 +427,8 @@ function MapPageContent() {
           {/* Floating Top Navigation */}
           <div
             className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
-              // Hide if Routing Mode OR Map Mode (per user request to hide white nav bar when piano keys are visible)
-              isRoutingMode || isMapMode
+              // Hide ONLY if Routing Mode (User wants Weather visible in Map Mode)
+              isRoutingMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
             }`}
@@ -433,13 +436,16 @@ function MapPageContent() {
             {/* Centered Top Nav Info */}
             <div className="pointer-events-auto flex-1 min-w-0 max-w-3xl mx-auto z-40">
               <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
-                <div className="pointer-events-auto shrink-0 z-50">
-                  {!isMapMode && <CategoryFilter />}
+                <div
+                  className={`pointer-events-auto shrink-0 z-50 transition-all duration-300 ${isMapMode ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}
+                >
+                  <CategoryFilter />
                 </div>
 
-                {/* In Map Mode, we only show GeoLocation (Search). Weather/Mode are hidden per user request to 'hide weather nav bar' but keep search implied by Image 1 */}
                 {/* GeoLocation: Always visible */}
-                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                <div
+                  className={`hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0 ${isMapMode ? 'opacity-0' : ''}`}
+                />
 
                 <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
                   <GeoLocation
@@ -467,8 +473,10 @@ function MapPageContent() {
 
                 <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
 
-                <div className="pointer-events-auto shrink-0 z-50 ml-auto">
-                  {!isMapMode && <BarrierFreeFilter />}
+                <div
+                  className={`pointer-events-auto shrink-0 z-50 ml-auto transition-all duration-300 ${isMapMode ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}
+                >
+                  <BarrierFreeFilter />
                 </div>
               </div>
             </div>

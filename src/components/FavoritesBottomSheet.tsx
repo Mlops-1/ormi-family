@@ -88,8 +88,8 @@ export default function FavoritesBottomSheet({
                 setIsOpen(true);
               }
             }}
-            // Curtain Handle Style - Restored
-            className="w-52 h-7 bg-orange-500 dark:bg-ormi-green-600 rounded-t-2xl shadow-[0_-2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer pointer-events-auto border-t border-white/20"
+            // Curtain Handle Style - Enhanced Tab with Chevron
+            className="w-48 h-6 bg-orange-500 dark:bg-ormi-green-600 rounded-t-2xl shadow-[0_-2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer pointer-events-auto active:opacity-90 border-t border-white/20"
           >
             <ChevronUp className="text-white w-5 h-5 animate-pulse" />
           </motion.div>

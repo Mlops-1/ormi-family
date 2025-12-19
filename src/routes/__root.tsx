@@ -2,7 +2,6 @@ import FavoriteMapModal from '@/components/FavoriteMapModal';
 import useTmapScript from '@/hooks/useTmapScript';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import { Map } from 'lucide-react';
 import { useState } from 'react';
 
 export const Route = createRootRoute({
@@ -28,14 +27,14 @@ function RootComponent() {
       <TanStackRouterDevtools />
 
       {/* Global Floating Favorite Map Button */}
-      <div className="fixed bottom-6 left-6 z-50">
+      {/* <div className="fixed bottom-6 left-6 z-50">
         <button
           onClick={() => setShowFavoriteMap(true)}
           className="w-14 h-14 bg-white dark:bg-slate-800 rounded-full shadow-lg flex items-center justify-center text-jeju-light-primary hover:bg-orange-50 border-2 border-jeju-light-primary transition-transform hover:scale-105 active:scale-95"
         >
           <Map size={28} />
         </button>
-      </div>
+      </div> */}
 
       {/* Global Favorite Map Modal */}
       {showFavoriteMap && (

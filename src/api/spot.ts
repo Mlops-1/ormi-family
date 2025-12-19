@@ -8,5 +8,5 @@ import instance from './instance';
 
 export const SpotAPI = {
   getRecommendedSpots: (data: SpotRequest) =>
-    instance.post<SpotCard[]>('/spot', data),
+    instance.post<SpotCard[]>('/prod/recommend', data),
 };

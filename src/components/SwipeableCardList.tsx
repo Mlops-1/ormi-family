@@ -31,7 +31,6 @@ export default function SwipeableCardList({
   const [currentIndex, setCurrentIndex] = useState(selectedIndex);
   const [prevSelectedIndex, setPrevSelectedIndex] = useState(selectedIndex);
   const [direction, setDirection] = useState(0);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -92,7 +91,6 @@ export default function SwipeableCardList({
         }
         return next;
       });
-      setIsExpanded(false); // Reset expansion on slide change
     },
     [items.length, currentCard, analytics, onIndexChange, onLoadMore]
   );
@@ -297,7 +295,7 @@ export default function SwipeableCardList({
             dragElastic={1}
             onDragEnd={handleDragEnd}
             style={{ x }}
-            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[600px] z-10 font-sans bottom-0"
+            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0"
           >
             {/* Card Container */}
             <div className="bg-white dark:bg-slate-900 rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
@@ -369,7 +367,7 @@ export default function SwipeableCardList({
               </div>
 
               {/* Bottom Fixed Buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 pt-10">
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 bg-linear-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 pt-16">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {

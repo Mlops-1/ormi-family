@@ -37,7 +37,7 @@ export default function SpotInteractionSheet({
   };
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom duration-300 pb-8 pointer-events-auto">
+    <div className="absolute bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-[0_-5px_30px_rgba(0,0,0,0.15)] animate-in slide-in-from-bottom duration-300 pb-8 pointer-events-auto font-jeju">
       <div className="p-4 flex flex-col gap-3">
         {/* Header: Title & Close */}
         <div className="flex items-start justify-between">

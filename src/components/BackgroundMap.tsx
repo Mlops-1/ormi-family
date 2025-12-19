@@ -232,11 +232,11 @@ export default function BackgroundMap({
             width: '100%',
             height: '100%',
             display: 'flex',
-            alignItems: 'center',
+            alignItems: 'flex-end', // Feet on ground
             justifyContent: 'center',
           }}
         >
-          <div style={contentStyle}>
+          <div style={{ ...contentStyle, marginBottom: '10%' }}>
             <Lottie
               animationData={animationData}
               loop={true}
@@ -265,7 +265,8 @@ export default function BackgroundMap({
         position: new window.Tmapv2.LatLng(userLocation.lat, userLocation.lon),
         map: mapInstance.current!,
         // Increased container size to 100px to accommodate larger dog
-        iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -50%); pointer-events: none;"></div>`,
+        // Using translate(-50%, -100%) to anchor at the bottom center (feet)
+        iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -100%); pointer-events: none;"></div>`,
         zIndex: 999,
       });
       userMarkerRef.current = marker;

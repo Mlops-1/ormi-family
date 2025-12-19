@@ -38,8 +38,8 @@ export default defineConfig({
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
-      '/spot': {
-        target: 'http://13.209.98.82:8000',
+      '/prod': {
+        target: 'https://tmqr6uurv7.execute-api.ap-northeast-2.amazonaws.com',
         changeOrigin: true,
       },
       '/favorites': {
