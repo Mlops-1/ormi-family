@@ -5,6 +5,7 @@ import BarrierFreeFilter from '@/components/BarrierFreeFilter';
 import CategoryFilter from '@/components/CategoryFilter';
 import FavoritesBottomSheet from '@/components/FavoritesBottomSheet';
 import GeoLocation from '@/components/GeoLocation';
+import LocationManager from '@/components/LocationManager';
 import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
@@ -20,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import { INITIAL_CATEGORY_IDS, useFilterStore } from '@/store/filterStore';
 import { useMapStore } from '@/store/mapStore';
+import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import type { RoutePoint } from '@/types/map';
 import type { AccessibilityType } from '@/types/spot';
@@ -43,6 +45,7 @@ function MapPageContent() {
   const navigate = useNavigate();
   const location = useGeoLocation();
   const { profile } = useAuth(); // Keep using useAuth for now as source of truth for profile
+  const { mode } = useUserStore();
 
   // Global State
   const {
@@ -70,6 +73,8 @@ function MapPageContent() {
     setEndPoint,
     setWayPoints,
     resetRoute,
+    addSavedLocation,
+    savedLocations,
   } = useMapStore();
 
   const {
@@ -80,21 +85,9 @@ function MapPageContent() {
   } = useFilterStore();
 
   const [isFetching, setIsFetching] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const isDarkMode = mode === 'pet';
 
-  // Theme Detection
-  useEffect(() => {
-    const checkTheme = () => {
-      setIsDarkMode(document.documentElement.classList.contains('dark'));
-    };
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => observer.disconnect();
-  }, []);
+  // Remove Theme Detection useEffect as it's now derived from store
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
@@ -113,7 +106,16 @@ function MapPageContent() {
             selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
         });
 
-        const newSpots = response.data || [];
+        const validSpots = (response.data || []).filter((spot) => {
+          const invalidPrefix = 'https://blogthumb.pstatic.net/';
+          const isFirstInvalid =
+            spot.first_image && spot.first_image.startsWith(invalidPrefix);
+          const isSecondInvalid =
+            spot.second_image && spot.second_image.startsWith(invalidPrefix);
+          return !isFirstInvalid && !isSecondInvalid;
+        });
+
+        const newSpots = validSpots;
 
         setAllSpots((prev) => {
           if (isReset) return newSpots;
@@ -171,9 +173,16 @@ function MapPageContent() {
     };
   }, [allSpots, selectedBarrierIds]);
 
-  const handleLocationChange = (coords: Coordinates) => {
+  const handleLocationChange = (coords: Coordinates, address?: string) => {
     setManualLocation(coords);
-    addNotification('위치가 변경되었습니다.');
+    if (address) {
+      addSavedLocation({
+        id: Date.now().toString(),
+        name: address,
+        coordinates: coords,
+      });
+    }
+    // addNotification('위치가 변경되었습니다.'); // Removed as per request
   };
 
   const handleMarkerClick = (index: number) => {
@@ -339,6 +348,7 @@ function MapPageContent() {
         onMarkerClick={handleMarkerClick}
         userLocation={location.coordinates}
         centerLocation={effectiveCoordinates}
+        savedLocations={savedLocations}
         routeStart={startPoint?.coordinates}
         routeEnd={endPoint?.coordinates}
         routeWaypoints={wayPoints.map((w) => w.coordinates)}
@@ -384,7 +394,7 @@ function MapPageContent() {
                   <CategoryFilter />
                 </div>
                 <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
-                <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
+                <div className="flex-1 min-w-0 flex justify-start overflow-hidden">
                   <GeoLocation
                     coordinates={effectiveCoordinates}
                     onLocationChange={handleLocationChange}
@@ -396,6 +406,13 @@ function MapPageContent() {
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
                 <div className="shrink-0 flex justify-center">
                   <WeatherWidget coordinates={effectiveCoordinates} />
+                </div>
+                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
+                <div className="shrink-0">
+                  <LocationManager
+                    currentLocation={location.coordinates}
+                    onSelectCurrentLocation={() => setManualLocation(null)}
+                  />
                 </div>
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
                 <div className="shrink-0">
@@ -442,7 +459,7 @@ function MapPageContent() {
                 wayPoints={wayPoints}
                 summary={routeSummary}
                 onWaypointsChange={setWayPoints}
-                isDogMode={document.documentElement.classList.contains('dark')}
+                isDogMode={isDarkMode}
                 onSetStartToMyLoc={() => {
                   if (location.coordinates) {
                     setStartPoint({

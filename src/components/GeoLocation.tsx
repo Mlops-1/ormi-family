@@ -1,10 +1,11 @@
 import useTmapScript from '@/hooks/useTmapScript';
+import { useUserStore } from '@/store/userStore';
 import type {
   TmapPoiResponse,
   TmapReverseGeocodeResponse,
 } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
-import { createOrangeMarker } from '@/utils/marker';
+import { createPinMarker } from '@/utils/marker';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { MapPin, Search, X } from 'lucide-react';
@@ -13,7 +14,7 @@ import { createPortal } from 'react-dom';
 
 interface Props {
   coordinates: Coordinates;
-  onLocationChange?: (coords: Coordinates) => void;
+  onLocationChange?: (coords: Coordinates, address?: string) => void;
   onHelpClick?: () => void;
   onUserClick?: () => void;
   user?: {
@@ -42,6 +43,40 @@ export default function GeoLocation({
   const { isLoaded } = useTmapScript();
   const [isMapOpen, setIsMapOpen] = useState(false);
 
+  const { mode } = useUserStore();
+  const isPetMode = mode === 'pet';
+
+  // Theme colors
+  const mainColorClass = isPetMode ? 'bg-ormi-green-500' : 'bg-orange-500';
+  const mainHoverColorClass = isPetMode
+    ? 'hover:bg-ormi-green-600'
+    : 'hover:bg-orange-600';
+  const mainTextColorClass = isPetMode
+    ? 'text-ormi-green-500'
+    : 'text-orange-500';
+  const ringColorClass = isPetMode
+    ? 'focus:ring-ormi-green-400'
+    : 'focus:ring-orange-400';
+  const mainHexColor = isPetMode ? '#10B981' : '#FFA500';
+
+  // Helper to format address
+  const formatAddress = (info: any) => {
+    const city = (info.city_do || '').replace(/제주특별자치도\s*/g, '').trim();
+    const gu = info.gu_gun || '';
+    const dong = info.legalDong || info.adminDong || '';
+    const bunji = info.bunji || '';
+    const ri = info.ri || '';
+
+    const parts = [];
+    if (city) parts.push(city);
+    if (gu) parts.push(gu);
+    if (dong) parts.push(dong);
+    if (ri) parts.push(ri);
+    if (bunji) parts.push(bunji);
+
+    return parts.join(' ');
+  };
+
   // Map related states
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Tmapv2.Map | null>(null);
@@ -67,17 +102,7 @@ export default function GeoLocation({
         );
         const info = res.data.addressInfo;
         if (info) {
-          const city = (info.city_do || '')
-            .replace(/제주특별자치도\s*/g, '')
-            .trim();
-          const gu = info.gu_gun || '';
-          const dong = info.legalDong || info.adminDong || '';
-
-          if (gu && dong) return `${gu} ${dong}`;
-          if (city && gu) return `${city} ${gu} ${dong}`;
-          return (info.fullAddress || '주소 미상')
-            .replace(/제주특별자치도\s*/g, '')
-            .trim();
+          return formatAddress(info);
         }
         return '주소 찾기 실패';
       } catch (e) {
@@ -98,17 +123,7 @@ export default function GeoLocation({
         );
         const info = res.data.addressInfo;
         if (info) {
-          const city = (info.city_do || '')
-            .replace(/제주특별자치도\s*/g, '')
-            .trim();
-          const gu = info.gu_gun || '';
-          const dong = info.legalDong || info.adminDong || '';
-
-          if (gu && dong) return `${gu} ${dong}`;
-          if (city && gu) return `${city} ${gu} ${dong}`;
-          return (info.fullAddress || '주소 미상')
-            .replace(/제주특별자치도\s*/g, '')
-            .trim();
+          return formatAddress(info);
         }
         return '주소 찾기 실패';
       } catch (e) {
@@ -159,7 +174,7 @@ export default function GeoLocation({
           position: latlng,
           map: map,
           draggable: true,
-          iconHTML: createOrangeMarker(true), // Using active orange marker
+          iconHTML: createPinMarker(mainHexColor, true), // Using active pin marker with theme color
         });
         markerInstance.current = marker;
 
@@ -195,6 +210,7 @@ export default function GeoLocation({
     addressData,
     fetchTmapAddress,
     checkMarkerPosition,
+    mainHexColor,
   ]);
 
   // Autocomplete Search
@@ -291,7 +307,7 @@ export default function GeoLocation({
   const handleConfirmLocation = () => {
     if (markerInstance.current && onLocationChange) {
       const pos = markerInstance.current.getPosition();
-      onLocationChange({ lat: pos.lat(), lon: pos.lng() });
+      onLocationChange({ lat: pos.lat(), lon: pos.lng() }, mapAddress);
     }
     setIsMapOpen(false);
   };
@@ -306,17 +322,46 @@ export default function GeoLocation({
         }`}
       >
         {/* Address Area (Clickable) */}
+        {/* Address Area (Clickable) */}
         <div
-          className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden cursor-pointer active:opacity-70 transition-opacity"
+          className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden cursor-pointer active:opacity-70 transition-opacity justify-start px-2"
           onClick={handleOpenMap}
         >
           <MapPin
             size={compact ? 16 : 20}
-            className="text-orange-500 shrink-0"
+            className={`${mainTextColorClass} shrink-0`}
           />
-          <span className="font-bold text-sm text-gray-800 truncate">
-            {addressData || '위치 확인 중...'}
-          </span>
+          <div className="flex flex-col items-start min-w-0 w-full">
+            <span className="text-base md:text-lg text-gray-800 dark:text-gray-100 leading-tight text-left w-full">
+              {addressData ? (
+                <>
+                  <span className="md:hidden truncate block w-full">
+                    {/* Mobile: Try to show Dong only. 
+                        formatAddress returns "Jeju-si Gu Dong Bunji"
+                        Split by space.
+                    */}
+                    {(() => {
+                      const parts = addressData.split(' ');
+                      // Find the part ending with '동' or '읍' or '면'
+                      const dongPart = parts.find(
+                        (p) =>
+                          p.endsWith('동') ||
+                          p.endsWith('읍') ||
+                          p.endsWith('면')
+                      );
+                      return dongPart || parts[parts.length - 1]; // Fallback to last part
+                    })()}
+                  </span>
+                  <span className="hidden md:inline truncate block w-full">
+                    {/* Tablet/Desktop: Full Address */}
+                    {addressData}
+                  </span>
+                </>
+              ) : (
+                '위치 확인 중...'
+              )}
+            </span>
+          </div>
         </div>
 
         {/* User Icon (Optional) */}
@@ -375,12 +420,12 @@ export default function GeoLocation({
                     onFocus={() => {
                       if (suggestions.length > 0) setShowSuggestions(true);
                     }}
-                    placeholder="장소 검색 (예: 제주공항)"
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-ormi-green-400 bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400"
+                    placeholder="장소 검색 (예: 제주국제공항)"
+                    className={`flex-1 px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 ${ringColorClass} bg-white dark:bg-slate-700 text-gray-900 dark:text-white placeholder-gray-400`}
                   />
                   <button
                     onClick={handleSearch}
-                    className="bg-ormi-green-500 text-white px-4 py-2 rounded-lg hover:bg-ormi-green-600 transition-colors flex items-center gap-1 shrink-0"
+                    className={`${mainColorClass} ${mainHoverColorClass} text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shrink-0`}
                   >
                     <Search size={18} />
                   </button>
@@ -434,7 +479,7 @@ export default function GeoLocation({
                 </div>
                 <button
                   onClick={handleConfirmLocation}
-                  className="w-full bg-ormi-ember-500 text-white py-3 rounded-xl font-bold hover:bg-ormi-ember-600 transition-colors shadow-md"
+                  className={`w-full ${mainColorClass} text-white py-3 rounded-xl font-bold ${mainHoverColorClass} transition-colors shadow-md`}
                 >
                   이 위치로 설정
                 </button>

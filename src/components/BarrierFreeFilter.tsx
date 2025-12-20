@@ -1,13 +1,14 @@
 import { useFilterStore } from '@/store/filterStore';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Baby, Dog, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
 
 import { BARRIER_CONFIG as OPTION_CONFIG } from '@/constants/filterConfig';
 
 interface Props {
   className?: string;
 }
+
+import { useUserStore } from '@/store/userStore';
 
 export default function BarrierFreeFilter({ className = '' }: Props) {
   const {
@@ -17,21 +18,8 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
     isBarrierOpen,
     setBarrierOpen,
   } = useFilterStore();
-
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    const checkTheme = () => {
-      setIsDarkMode(document.documentElement.classList.contains('dark'));
-    };
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => observer.disconnect();
-  }, []);
+  const { mode } = useUserStore();
+  const isPetMode = mode === 'pet';
 
   return (
     <div className={`relative z-50 ${className}`}>
@@ -43,7 +31,7 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
       >
         {isBarrierOpen ? (
           <X size={20} />
-        ) : isDarkMode ? (
+        ) : isPetMode ? (
           <Dog size={20} />
         ) : (
           <Baby size={20} />
@@ -63,25 +51,7 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
             exit={{ opacity: 0, y: -10 }}
             className="absolute top-full right-0 mt-2 flex flex-col gap-1.5 p-2 bg-white rounded-2xl shadow-xl border border-gray-100 min-w-[120px] pointer-events-auto z-50"
           >
-            {(() => {
-              // Reorder logic: In Child Mode (!isDarkMode), prioritize baby-related filters
-              let orderedIds = [...barrierOrderedIds];
-              if (!isDarkMode) {
-                const priority = [
-                  'stroller',
-                  'lactation_room',
-                  'baby_spare_chair',
-                ];
-                const top = orderedIds.filter((id) => priority.includes(id));
-                const bottom = orderedIds.filter(
-                  (id) => !priority.includes(id)
-                );
-                // Sort top based on priority array order
-                top.sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
-                orderedIds = [...top, ...bottom];
-              }
-              return orderedIds;
-            })().map((id) => {
+            {barrierOrderedIds.map((id) => {
               const config = OPTION_CONFIG[id];
               const isActive = selectedBarrierIds.includes(id);
 

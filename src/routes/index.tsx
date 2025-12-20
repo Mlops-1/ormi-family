@@ -1,5 +1,6 @@
 import motherAnimation from '@/assets/lotties/mother.json';
 import DogRiveAnimation from '@/components/DogRiveAnimation';
+import { useFilterStore } from '@/store/filterStore';
 import { useUserStore } from '@/store/userStore';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -14,20 +15,14 @@ function LandingPage() {
   const navigate = useNavigate();
 
   const { setMode } = useUserStore();
+  const { setFiltersForMode } = useFilterStore();
 
   const handleModeSelect = (mode: 'toddler' | 'pet') => {
-    const root = window.document.documentElement;
-
-    // Set Global Mode
+    // Set Global Mode (handles theme side effects in store)
     setMode(mode);
 
-    if (mode === 'toddler') {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    } else {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    }
+    // Set Filters based on mode (handles filter selection and ordering)
+    setFiltersForMode(mode);
 
     // Navigate to the main app (now at /map)
     navigate({ to: '/map' });

@@ -2,9 +2,14 @@ import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import strollerAnimation from '@/assets/lotties/baby_care.json';
 import walkingDogAnimation from '@/assets/lotties/walking_dog.json';
 import useTmapScript from '@/hooks/useTmapScript';
+import type { SavedLocation } from '@/store/mapStore';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
-import { createOrangeMarker, createSpotMarker } from '@/utils/marker';
+import {
+  createCurrentLocationMarker,
+  createPinMarker,
+  createSpotMarker,
+} from '@/utils/marker';
 import Lottie from 'lottie-react';
 import { useEffect, useRef } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -17,6 +22,7 @@ interface Props {
   onMarkerClick?: (index: number) => void;
   userLocation?: Coordinates | null;
   centerLocation?: Coordinates;
+  savedLocations?: SavedLocation[];
   routeStart?: Coordinates;
   routeEnd?: Coordinates;
   routeWaypoints?: Coordinates[];
@@ -30,7 +36,7 @@ interface CustomMarker extends Tmapv2.Marker {
 }
 
 const createSimsMarker = (theme: 'orange' | 'green') => {
-  const color = theme === 'green' ? '#10B981' : '#FF6B00';
+  const color = theme === 'green' ? '#10B981' : '#FFA500';
   return `
     <div style="display: flex; justify-content: center; align-items: center; width: 30px; height: 30px;">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));">
@@ -48,6 +54,7 @@ export default function BackgroundMap({
   onMarkerClick,
   userLocation,
   centerLocation,
+  savedLocations = [],
   routeStart,
   routeEnd,
   routeWaypoints = [],
@@ -58,12 +65,12 @@ export default function BackgroundMap({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Tmapv2.Map | null>(null);
 
-  // Ref to block map click when marker is clicked (prevents event bubbling issues)
   const ignoreMapClickRef = useRef(false);
 
   const spotMarkersRef = useRef<Tmapv2.Marker[]>([]);
-  const userMarkerRef = useRef<Tmapv2.Marker | null>(null);
+  const gpsMarkerRef = useRef<Tmapv2.Marker | null>(null);
   const referenceMarkerRef = useRef<Tmapv2.Marker | null>(null);
+  const savedMarkersRef = useRef<Tmapv2.Marker[]>([]);
 
   // Route Refs
   const routeStartMarkerRef = useRef<Tmapv2.Marker | null>(null);
@@ -73,6 +80,8 @@ export default function BackgroundMap({
 
   const onMapInteractionRef = useRef(onMapInteraction);
   const onMarkerClickRef = useRef(onMarkerClick);
+
+  const mainColor = markerTheme === 'green' ? '#10B981' : '#FFA500';
 
   useEffect(() => {
     onMapInteractionRef.current = onMapInteraction;
@@ -95,7 +104,6 @@ export default function BackgroundMap({
       });
 
       map.addListener('click', () => {
-        // If a marker was just clicked, ignore this map click
         if (ignoreMapClickRef.current) return;
         onMapInteractionRef.current?.();
       });
@@ -112,15 +120,9 @@ export default function BackgroundMap({
     if (isMapMode) {
       if (typeof map.setScrollwheel === 'function') map.setScrollwheel(true);
       if (typeof map.setDraggable === 'function') map.setDraggable(true);
-      if (typeof map.setOptions === 'function') {
-        map.setOptions({ scrollwheel: true, draggable: true });
-      }
     } else {
       if (typeof map.setScrollwheel === 'function') map.setScrollwheel(false);
       if (typeof map.setDraggable === 'function') map.setDraggable(false);
-      if (typeof map.setOptions === 'function') {
-        map.setOptions({ scrollwheel: false, draggable: false });
-      }
     }
   }, [isMapMode]);
 
@@ -147,19 +149,11 @@ export default function BackgroundMap({
         setTimeout(() => {
           ignoreMapClickRef.current = false;
         }, 200);
-
-        // Log spot data for debugging
-        console.log('Marker Clicked/Touched:', {
-          index,
-          spot,
-          valid: !!spot.content_id && !!spot.lat && !!spot.lon,
-        });
-
         onMarkerClickRef.current?.(index);
       };
 
       marker.addListener('click', handleMarkerClick);
-      marker.addListener('touchend', handleMarkerClick); // Add touch support
+      marker.addListener('touchend', handleMarkerClick);
 
       spotMarkersRef.current.push(marker);
     });
@@ -194,44 +188,58 @@ export default function BackgroundMap({
     });
   }, [currentSpotIndex, isMapMode, spots, markerTheme]);
 
-  // User Location Marker
+  // 1. GPS Location Marker (Neon)
   useEffect(() => {
     if (!mapInstance.current || !window.Tmapv2) return;
 
-    if (!userLocation) {
-      if (userMarkerRef.current) {
-        const marker = userMarkerRef.current as CustomMarker;
-        if (marker._reactRoot) {
-          setTimeout(() => marker._reactRoot?.unmount(), 0);
-        }
-        marker.setMap(null);
-        userMarkerRef.current = null;
-      }
-      return;
+    if (gpsMarkerRef.current) {
+      gpsMarkerRef.current.setMap(null);
+      gpsMarkerRef.current = null;
     }
 
-    const isDog = markerTheme === 'green';
-    const markerId = 'val-user-marker'; // Fixed ID for stability
+    if (userLocation) {
+      // Hide neon marker if it's the same as reference location (Reference Lottie takes priority)
+      const isRef =
+        centerLocation &&
+        Math.abs(userLocation.lat - centerLocation.lat) < 0.0001 &&
+        Math.abs(userLocation.lon - centerLocation.lon) < 0.0001;
 
-    // Style Configuration
+      if (!isRef) {
+        gpsMarkerRef.current = new window.Tmapv2.Marker({
+          position: new window.Tmapv2.LatLng(
+            userLocation.lat,
+            userLocation.lon
+          ),
+          map: mapInstance.current!,
+          iconHTML: createCurrentLocationMarker(mainColor),
+          zIndex: 200,
+        });
+      }
+    }
+  }, [userLocation, centerLocation, mainColor, isLoaded]);
+
+  // 2. Reference Location Marker (Lottie)
+  useEffect(() => {
+    if (!mapInstance.current || !window.Tmapv2 || !centerLocation) return;
+
+    const isDog = markerTheme === 'green';
+    const markerId = 'val-reference-marker';
+
     const animationData = isDog ? walkingDogAnimation : strollerAnimation;
     const filterStyle = isDog
-      ? 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white)' // Dog: White halo only
-      : 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)'; // Stroller: Strong outline
+      ? 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white)'
+      : 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)';
 
-    // Size Logic: Container is effectively 100px (set below).
-    // Dog: Full size (scale 1.2 or just 100%).
-    // Stroller: Original size (approx 70px) -> Scale down to ~70%.
     const contentStyle = {
       width: isDog ? '130%' : '50%',
       height: isDog ? '130%' : '50%',
-      margin: '0 auto', // Center
+      margin: '0 auto',
       filter: filterStyle,
       transform:
         routePath && routePath.length > 1 && routePath[1].lon < routePath[0].lon
           ? 'scaleX(-1)'
           : 'none',
-      transition: 'all 0.3s ease', // Smooth transition
+      transition: 'all 0.3s ease',
     };
 
     const renderContent = (root: Root) => {
@@ -241,7 +249,7 @@ export default function BackgroundMap({
             width: '100%',
             height: '100%',
             display: 'flex',
-            alignItems: 'flex-end', // Feet on ground
+            alignItems: 'flex-end',
             justifyContent: 'center',
           }}
         >
@@ -257,36 +265,30 @@ export default function BackgroundMap({
       );
     };
 
-    if (userMarkerRef.current) {
-      // 1. UPDATE Existing Marker
-      userMarkerRef.current.setPosition(
-        new window.Tmapv2.LatLng(userLocation.lat, userLocation.lon)
+    if (referenceMarkerRef.current) {
+      referenceMarkerRef.current.setPosition(
+        new window.Tmapv2.LatLng(centerLocation.lat, centerLocation.lon)
       );
-
-      // Instant Re-render of React Content
-      const customMarker = userMarkerRef.current as CustomMarker;
+      const customMarker = referenceMarkerRef.current as CustomMarker;
       if (customMarker._reactRoot) {
         renderContent(customMarker._reactRoot);
       }
     } else {
-      // 2. CREATE New Marker
       const marker = new window.Tmapv2.Marker({
-        position: new window.Tmapv2.LatLng(userLocation.lat, userLocation.lon),
+        position: new window.Tmapv2.LatLng(
+          centerLocation.lat,
+          centerLocation.lon
+        ),
         map: mapInstance.current!,
-        // Increased container size to 100px to accommodate larger dog
-        // Using translate(-50%, -100%) to anchor at the bottom center (feet)
         iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -100%); pointer-events: none;"></div>`,
-        zIndex: 999,
+        zIndex: 300,
       });
-      userMarkerRef.current = marker;
+      referenceMarkerRef.current = marker;
 
       const mountLottie = (attempts = 0) => {
         const container = document.getElementById(markerId);
         if (container) {
           try {
-            // Check if root already exists on this container (cleanup safety)
-            // (In React 18 createRoot throws if called on existing root, but we track via _reactRoot)
-
             const root = createRoot(container);
             (marker as CustomMarker)._reactRoot = root;
             renderContent(root);
@@ -297,41 +299,38 @@ export default function BackgroundMap({
           setTimeout(() => mountLottie(attempts + 1), 100);
         }
       };
-
       mountLottie();
     }
-  }, [userLocation, isLoaded, routeStart, markerTheme, routePath]);
+  }, [centerLocation, isLoaded, markerTheme, routePath]);
 
-  // Reference Location Marker
+  // 3. Saved Locations Markers (Pins)
   useEffect(() => {
     if (!mapInstance.current || !window.Tmapv2) return;
 
-    if (referenceMarkerRef.current) {
-      referenceMarkerRef.current.setMap(null);
-      referenceMarkerRef.current = null;
-    }
+    savedMarkersRef.current.forEach((m) => m.setMap(null));
+    savedMarkersRef.current = [];
 
-    // Only show orange marker if center is different from user
-    if (centerLocation) {
-      const isSameAsUser =
-        userLocation &&
-        Math.abs(userLocation.lat - centerLocation.lat) < 0.0001 &&
-        Math.abs(userLocation.lon - centerLocation.lon) < 0.0001;
+    savedLocations.forEach((loc) => {
+      // Don't show pin if it's the active reference location
+      const isActive =
+        centerLocation &&
+        Math.abs(loc.coordinates.lat - centerLocation.lat) < 0.0001 &&
+        Math.abs(loc.coordinates.lon - centerLocation.lon) < 0.0001;
 
-      if (!isSameAsUser) {
+      if (!isActive) {
         const marker = new window.Tmapv2.Marker({
           position: new window.Tmapv2.LatLng(
-            centerLocation.lat,
-            centerLocation.lon
+            loc.coordinates.lat,
+            loc.coordinates.lon
           ),
           map: mapInstance.current!,
-          iconHTML: createOrangeMarker(false),
-          zIndex: 4,
+          iconHTML: createPinMarker(mainColor, false, 50),
+          zIndex: 50,
         });
-        referenceMarkerRef.current = marker;
+        savedMarkersRef.current.push(marker);
       }
-    }
-  }, [centerLocation, userLocation, isLoaded]);
+    });
+  }, [savedLocations, centerLocation, mainColor, isLoaded]);
 
   // Route Visualization
   useEffect(() => {
@@ -339,36 +338,20 @@ export default function BackgroundMap({
 
     const map = mapInstance.current;
 
-    // Helper to create simple colored marker for waypoints only
     const createWaypointMarker = (lat: number, lon: number, index: number) => {
       return new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(lat, lon),
         map: map,
         iconHTML: `
-          <div style="
-            width: 24px; 
-            height: 24px; 
-            background-color: #10B981; 
-            border: 2px solid white; 
-            border-radius: 50%; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-          ">
+          <div style="width: 24px; height: 24px; background-color: #10B981; border: 2px solid white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">
             ${index + 1}
           </div>
         `,
         zIndex: 200,
-        // anchor not supported in TS defs, handle in CSS/HTML
-        offset: new window.Tmapv2.Point(12, 12), // Center offset for 24x24
+        offset: new window.Tmapv2.Point(12, 12),
       });
     };
 
-    // 1. Draw Path
     if (routePolylineRef.current) {
       routePolylineRef.current.setMap(null);
       routePolylineRef.current = null;
@@ -378,19 +361,17 @@ export default function BackgroundMap({
       const path = routePath.map((p) => new window.Tmapv2.LatLng(p.lat, p.lon));
       routePolylineRef.current = new window.Tmapv2.Polyline({
         path: path,
-        strokeColor: markerTheme === 'green' ? '#10B981' : '#FF6B00', // Green for Dog Mode, Orange for others
+        strokeColor: markerTheme === 'green' ? '#10B981' : '#FFA500',
         strokeWeight: 6,
         strokeOpacity: 0.9,
         map: map,
       });
 
-      // Fit bounds to show route
       const bounds = new window.Tmapv2.LatLngBounds();
       path.forEach((p) => bounds.extend(p));
       map.fitBounds(bounds);
     }
 
-    // 2. Start Marker
     if (routeStartMarkerRef.current) {
       routeStartMarkerRef.current.setMap(null);
       routeStartMarkerRef.current = null;
@@ -401,11 +382,10 @@ export default function BackgroundMap({
         map: map,
         iconHTML: createSimsMarker(markerTheme),
         zIndex: 210,
-        offset: new window.Tmapv2.Point(15, 15), // Center offset for 30x30
+        offset: new window.Tmapv2.Point(15, 15),
       });
     }
 
-    // 3. End Marker
     if (routeEndMarkerRef.current) {
       routeEndMarkerRef.current.setMap(null);
       routeEndMarkerRef.current = null;
@@ -416,11 +396,10 @@ export default function BackgroundMap({
         map: map,
         iconHTML: createSimsMarker(markerTheme),
         zIndex: 210,
-        offset: new window.Tmapv2.Point(15, 15), // Center offset for 30x30
+        offset: new window.Tmapv2.Point(15, 15),
       });
     }
 
-    // 4. Waypoint Markers
     routeWaypointMarkersRef.current.forEach((m) => m.setMap(null));
     routeWaypointMarkersRef.current = [];
     if (routeWaypoints) {
@@ -429,21 +408,12 @@ export default function BackgroundMap({
         routeWaypointMarkersRef.current.push(marker);
       });
     }
-  }, [
-    routeStart,
-    routeEnd,
-    routeWaypoints,
-    routePath,
-    isLoaded,
-    markerTheme, // Added dependency
-  ]);
+  }, [routeStart, routeEnd, routeWaypoints, routePath, isLoaded, markerTheme]);
 
   return (
     <div
       ref={mapRef}
-      className={`absolute inset-0 w-full h-full pointer-events-auto ${
-        isMapMode ? 'z-10' : 'z-0'
-      }`}
+      className={`absolute inset-0 w-full h-full pointer-events-auto ${isMapMode ? 'z-10' : 'z-0'}`}
     />
   );
 }

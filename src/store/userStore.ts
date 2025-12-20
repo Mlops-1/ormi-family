@@ -53,7 +53,19 @@ export const useUserStore = create<UserState>()(
 
       setUser: (user) => set({ user }),
       setProfile: (profile) => set({ profile }),
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => {
+        set({ mode });
+
+        // Handle Side Effects
+        const root = window.document.documentElement;
+        if (mode === 'toddler') {
+          root.classList.remove('dark');
+          localStorage.setItem('theme', 'light');
+        } else {
+          root.classList.add('dark');
+          localStorage.setItem('theme', 'dark');
+        }
+      },
       logout: () =>
         set({ user: null, profile: null, editForm: INITIAL_FORM_STATE }),
 

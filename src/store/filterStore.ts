@@ -21,6 +21,7 @@ interface FilterStore {
   toggleCategoryId: (id: SpotCategoryType) => void;
   isCategoryOpen: boolean;
   setCategoryOpen: (isOpen: boolean) => void;
+  setFiltersForMode: (mode: 'toddler' | 'pet') => void;
 }
 
 // Initial Barrier Options
@@ -89,6 +90,67 @@ export const useFilterStore = create<FilterStore>()(
         }),
       isCategoryOpen: false,
       setCategoryOpen: (isOpen) => set({ isCategoryOpen: isOpen }),
+
+      // Theme/Mode Preset Action
+      setFiltersForMode: (mode: 'toddler' | 'pet') => {
+        if (mode === 'toddler') {
+          // Child Mode (Light)
+          // Categories: Tourist Spot, Accommodation
+          const newCategories = [
+            SpotCategory.TOURIST_SPOT,
+            SpotCategory.ACCOMMODATION,
+          ];
+
+          // Barriers: Stroller (Top), Nursing Room, High Chair, Elevator
+          const barrierPriority = [
+            'stroller',
+            'lactation_room',
+            'baby_spare_chair',
+            'elevator',
+          ] as AccessibilityType[];
+          const restBarriers = INITIAL_BARRIER_IDS.filter(
+            (id) => !barrierPriority.includes(id)
+          );
+          const newBarrierOrder = [...barrierPriority, ...restBarriers];
+
+          // Select strictly these 4? Or just ensure they are on?
+          // User said: "Right Filter (Amenities): Enable Stroller, Nursing Room, High Chair, Elevator"
+          const newSelectedBarriers = [...barrierPriority];
+
+          set({
+            selectedCategoryIds: newCategories,
+            selectedBarrierIds: newSelectedBarriers,
+            barrierOrderedIds: newBarrierOrder,
+            isCategoryOpen: false, // Optional: Reset open state or keep as is? User didn't specify, defaulting to closed seems safe
+            isBarrierOpen: false,
+          });
+        } else {
+          // Pet Mode (Dark)
+          // Categories: Cafe, Restaurant
+          const newCategories = [SpotCategory.CAFE, SpotCategory.RESTAURANT];
+
+          // Barriers: Pet Friendly (Top)
+          // "help_dog" is likely "Pet Friendly" based on context (AccessibilityType has help_dog)
+          // Wait, is "help_dog" actually "Service Dog" or "Pet Friendly"?
+          // usually "help_dog" = service dog. But in this app concept, it seems to map to "Pet Friendly" for the dark mode.
+          // Let's assume 'help_dog' is the one.
+          const barrierPriority = ['help_dog'] as AccessibilityType[];
+          const restBarriers = INITIAL_BARRIER_IDS.filter(
+            (id) => !barrierPriority.includes(id)
+          );
+          const newBarrierOrder = [...barrierPriority, ...restBarriers];
+
+          const newSelectedBarriers = [...barrierPriority];
+
+          set({
+            selectedCategoryIds: newCategories,
+            selectedBarrierIds: newSelectedBarriers,
+            barrierOrderedIds: newBarrierOrder,
+            isCategoryOpen: false,
+            isBarrierOpen: false,
+          });
+        }
+      },
     }),
     {
       name: 'filter-storage',
@@ -98,8 +160,6 @@ export const useFilterStore = create<FilterStore>()(
         selectedBarrierIds: state.selectedBarrierIds,
         categoryOrderedIds: state.categoryOrderedIds,
         selectedCategoryIds: state.selectedCategoryIds,
-        // We can persist open state too if desired, but user might prefer defaults on cold start?
-        // User asked "State management so data doesn't leak". Persisting selection is key.
       }),
     }
   )
