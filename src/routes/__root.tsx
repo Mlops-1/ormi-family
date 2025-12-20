@@ -1,7 +1,6 @@
 import FavoriteMapModal from '@/components/FavoriteMapModal';
 import useTmapScript from '@/hooks/useTmapScript';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
-import { TanStackRouterDevtools } from '@tanstack/router-devtools';
 import { useState } from 'react';
 
 export const Route = createRootRoute({
@@ -16,15 +15,15 @@ function RootComponent() {
 
   return (
     /* Outer Layout: Responsive container */
-    <div className="min-h-screen w-full flex justify-center bg-gray-900 transition-colors duration-300">
+    <div className="min-h-dvh w-full flex justify-center bg-gray-900 transition-colors duration-300">
       {/* <ThemeToggle /> */}
 
       {/* App Container - Simple max-width responsive layout */}
-      <div className="w-full max-w-md md:max-w-lg lg:max-w-xl min-h-screen bg-white dark:bg-slate-800 shadow-xl overflow-hidden relative transition-colors duration-300">
+      <div className="w-full max-w-md md:max-w-3xl lg:max-w-5xl min-h-dvh bg-white dark:bg-slate-800 shadow-xl overflow-hidden relative transition-colors duration-300">
         <Outlet />
       </div>
 
-      <TanStackRouterDevtools />
+      {/* <TanStackRouterDevtools /> */}
 
       {/* Global Floating Favorite Map Button */}
       {/* <div className="fixed bottom-6 left-6 z-50">

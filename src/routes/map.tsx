@@ -396,7 +396,7 @@ function MapPageContent() {
 
       {/* Overlay Content */}
       <div className="absolute inset-0 w-full h-full pointer-events-none flex justify-center">
-        <div className="w-full max-w-lg md:max-w-xl h-full flex flex-col relative">
+        <div className="w-full h-full flex flex-col relative">
           {/* Global Notification */}
           {notifications.length > 0 && (
             <div className="pointer-events-auto z-50">
@@ -434,7 +434,7 @@ function MapPageContent() {
             }`}
           >
             {/* Centered Top Nav Info */}
-            <div className="pointer-events-auto flex-1 min-w-0 max-w-3xl mx-auto z-40">
+            <div className="pointer-events-auto flex-1 min-w-0 w-full mx-auto z-40">
               <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
                 <div
                   className={`pointer-events-auto shrink-0 z-50 transition-all duration-300 ${isMapMode ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}

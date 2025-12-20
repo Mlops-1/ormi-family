@@ -46,7 +46,7 @@ function LandingPage() {
   return (
     <div className="h-dvh w-full flex flex-col items-center justify-center bg-white transition-colors duration-500 overflow-hidden relative">
       {/* Container for Title and Floating Icons - Added group for hover effect */}
-      <div className="relative w-full max-w-3xl h-64 md:h-80 flex items-center justify-center mb-8 md:mb-12 z-10 group overflow-visible">
+      <div className="relative w-full max-w-3xl h-64 md:h-80 flex items-center justify-center -mb-8 -md:mb-10 z-10 group overflow-visible">
         {/* Main Title Logo Image - Elegant & Clean */}
         <motion.img
           src="/src/assets/images/title_logo_elegant.png"
@@ -104,15 +104,15 @@ function LandingPage() {
           },
 
           // ID 5: Rolling Leaf (Col 4, Row 2) -> Bottom Center-Left
-          {
-            id: 5,
-            mobile: { left: '20%', top: '80%' },
-            desktop: { left: '25%', top: '80%' },
-            delay: 0.3,
-            col: 4,
-            row: 2,
-            flip: false,
-          },
+          // {
+          //   id: 5,
+          //   mobile: { left: '20%', top: '80%' },
+          //   desktop: { left: '25%', top: '80%' },
+          //   delay: 0.3,
+          //   col: 4,
+          //   row: 2,
+          //   flip: false,
+          // },
 
           // ID 6: Waving Orange (Col 2, Row 0) -> Right Middle (Moved UP to avoid covering text)
           {
@@ -137,15 +137,15 @@ function LandingPage() {
           },
 
           // ID 8: Jumping Leaf (Col 0, Row 2) -> Bottom Rightish
-          {
-            id: 8,
-            mobile: { left: '65%', top: '80%' },
-            desktop: { left: '60%', top: '85%' },
-            delay: 0.15,
-            col: 0,
-            row: 2,
-            flip: true,
-          },
+          // {
+          //   id: 8,
+          //   mobile: { left: '65%', top: '80%' },
+          //   desktop: { left: '60%', top: '85%' },
+          //   delay: 0.15,
+          //   col: 0,
+          //   row: 2,
+          //   flip: true,
+          // },
 
           // ID 9: Sleeping Leaf (Col 1, Row 2) -> Left Middle
           {
@@ -159,15 +159,15 @@ function LandingPage() {
           },
 
           // ID 10: NEW! Meditating Orange (Col 3, Row 0) -> Bottom Center (Below Title)
-          {
-            id: 10,
-            mobile: { left: '45%', top: '75%' },
-            desktop: { left: '50%', top: '70%' },
-            delay: 0.6,
-            col: 3,
-            row: 0,
-            flip: false,
-          },
+          // {
+          //   id: 10,
+          //   mobile: { left: '45%', top: '75%' },
+          //   desktop: { left: '50%', top: '70%' },
+          //   delay: 0.6,
+          //   col: 3,
+          //   row: 0,
+          //   flip: false,
+          // },
         ].map((item) => (
           <motion.div
             key={item.id}
@@ -191,10 +191,27 @@ function LandingPage() {
             }}
             className="absolute z-40" // Removed overflow-hidden from here to prevent clipping
             style={{
-              width: '52px',
-              height: '52px',
+              width: isDesktop ? '58px' : '52px',
+              height: isDesktop ? '58px' : '52px',
             }}
           >
+            {/* Speech Bubble for Waving Orange (ID 6) */}
+            {item.id === 6 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, x: 10 }}
+                animate={{ opacity: 1, scale: 1, x: 0 }}
+                transition={{ delay: 1.2, duration: 0.5, type: 'spring' }}
+                className="absolute right-[110%] top-[-20%] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 pointer-events-none"
+              >
+                {/* Bubble Tail */}
+                <div className="absolute top-1/2 -right-1 w-2 h-2 bg-white/90 border-t border-r border-orange-100 transform rotate-45 -translate-y-1/2"></div>
+
+                <p className="font-jeju text-jeju-light-text-primary text-xs md:text-sm leading-none pt-1">
+                  제주도, 누구랑 오셨어요?
+                </p>
+              </motion.div>
+            )}
+
             {/* 2. BOBBING & INTERACTION WRAPPER (Handles Float Loop + Bounce Effect) */}
             <motion.div
               animate={{
@@ -240,7 +257,7 @@ function LandingPage() {
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 md:gap-12 w-full max-w-4xl px-4 md:px-6 z-10">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-12 w-full max-w-4xl px-4 md:px-6 z-10 -mt-5 md:-mt-12">
         {/* Toddler Option */}
         <motion.button
           onClick={() => handleModeSelect('toddler')}
@@ -248,7 +265,7 @@ function LandingPage() {
           whileTap={{ scale: 0.95 }}
           className="flex-1 min-w-0 p-4 md:p-8 transition-all group relative flex flex-col items-center"
         >
-          <div className="absolute inset-0 bg-linear-to-br from-orange-100/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
+          <div className="absolute inset-0 bg-linear-to-br transition-opacity rounded-3xl" />
           <div className="w-full h-40 md:h-80 mb-4 md:mb-6 relative">
             <Lottie
               animationData={motherAnimation}
@@ -272,7 +289,7 @@ function LandingPage() {
           className="flex-1 min-w-0 p-4 md:p-8 transition-all group relative flex flex-col items-center"
         >
           {/* Rive Animation Wrapper for Alignment */}
-          <div className="w-full h-40 md:h-80 mb-4 md:mb-6 relative">
+          <div className="w-full h-40 md:h-80 mb-4 md:mb-6 relative -bottom-4.5">
             <DogRiveAnimation />
           </div>
 
