@@ -427,8 +427,8 @@ function MapPageContent() {
           {/* Floating Top Navigation */}
           <div
             className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
-              // Hide ONLY if Routing Mode (User wants Weather visible in Map Mode)
-              isRoutingMode
+              // Hide ONLY if Routing Mode AND Map Mode (Routing header takes over in map mode)
+              isRoutingMode && isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
             }`}
@@ -482,8 +482,8 @@ function MapPageContent() {
             </div>
           </div>
 
-          {/* Side Piano Key Filters (Visible only in Map Mode & Not Routing) */}
-          {isMapMode && !isRoutingMode && (
+          {/* Side Piano Key Filters (Visible except in Routing Mode) */}
+          {!isRoutingMode && (
             <>
               {/* Left Side: Category Config */}
               <div className="absolute top-28 left-0 z-40 flex flex-col gap-3 pointer-events-auto">

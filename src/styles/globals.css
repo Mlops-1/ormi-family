@@ -11,8 +11,18 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: 'PyeongChang';
+  src:
+    url('../assets/fonts/PyeongChangPeace-Bold.ttf') format('truetype'),
+    url('../assets/fonts/PyeongChangPeace-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
+
 @theme {
   --font-jeju: 'JejuGothic', sans-serif;
+  --font-pyeongchang: 'PyeongChang', sans-serif;
   --font-sans: 'JejuGothic', sans-serif;
 
   /* Jeju Tangerine Palette - Light */
