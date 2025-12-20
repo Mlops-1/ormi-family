@@ -142,15 +142,24 @@ export default function BackgroundMap({
         ),
       });
 
-      marker.addListener('click', () => {
-        // Set ignore flag to true briefly to block map click listener
+      const handleMarkerClick = () => {
         ignoreMapClickRef.current = true;
         setTimeout(() => {
           ignoreMapClickRef.current = false;
         }, 200);
 
+        // Log spot data for debugging
+        console.log('Marker Clicked/Touched:', {
+          index,
+          spot,
+          valid: !!spot.content_id && !!spot.lat && !!spot.lon,
+        });
+
         onMarkerClickRef.current?.(index);
-      });
+      };
+
+      marker.addListener('click', handleMarkerClick);
+      marker.addListener('touchend', handleMarkerClick); // Add touch support
 
       spotMarkersRef.current.push(marker);
     });
@@ -214,8 +223,8 @@ export default function BackgroundMap({
     // Dog: Full size (scale 1.2 or just 100%).
     // Stroller: Original size (approx 70px) -> Scale down to ~70%.
     const contentStyle = {
-      width: isDog ? '130%' : '70%',
-      height: isDog ? '130%' : '70%',
+      width: isDog ? '130%' : '50%',
+      height: isDog ? '130%' : '50%',
       margin: '0 auto', // Center
       filter: filterStyle,
       transform:

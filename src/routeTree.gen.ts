@@ -15,8 +15,6 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as OrmiTeamRouteImport } from './routes/ormi-team'
 import { Route as MapRouteImport } from './routes/map'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as Landing2RouteImport } from './routes/landing2'
-import { Route as LandingRouteImport } from './routes/landing'
 import { Route as SplatRouteImport } from './routes/$'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
@@ -52,16 +50,6 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const Landing2Route = Landing2RouteImport.update({
-  id: '/landing2',
-  path: '/landing2',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LandingRoute = LandingRouteImport.update({
-  id: '/landing',
-  path: '/landing',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
@@ -86,8 +74,6 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/landing': typeof LandingRoute
-  '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
@@ -100,8 +86,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/landing': typeof LandingRoute
-  '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
@@ -115,8 +99,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$': typeof SplatRoute
-  '/landing': typeof LandingRoute
-  '/landing2': typeof Landing2Route
   '/login': typeof LoginRoute
   '/map': typeof MapRoute
   '/ormi-team': typeof OrmiTeamRoute
@@ -131,8 +113,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$'
-    | '/landing'
-    | '/landing2'
     | '/login'
     | '/map'
     | '/ormi-team'
@@ -145,8 +125,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$'
-    | '/landing'
-    | '/landing2'
     | '/login'
     | '/map'
     | '/ormi-team'
@@ -159,8 +137,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$'
-    | '/landing'
-    | '/landing2'
     | '/login'
     | '/map'
     | '/ormi-team'
@@ -174,8 +150,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SplatRoute: typeof SplatRoute
-  LandingRoute: typeof LandingRoute
-  Landing2Route: typeof Landing2Route
   LoginRoute: typeof LoginRoute
   MapRoute: typeof MapRoute
   OrmiTeamRoute: typeof OrmiTeamRoute
@@ -230,20 +204,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/landing2': {
-      id: '/landing2'
-      path: '/landing2'
-      fullPath: '/landing2'
-      preLoaderRoute: typeof Landing2RouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/landing': {
-      id: '/landing'
-      path: '/landing'
-      fullPath: '/landing'
-      preLoaderRoute: typeof LandingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/$': {
       id: '/$'
       path: '/$'
@@ -278,8 +238,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SplatRoute: SplatRoute,
-  LandingRoute: LandingRoute,
-  Landing2Route: Landing2Route,
   LoginRoute: LoginRoute,
   MapRoute: MapRoute,
   OrmiTeamRoute: OrmiTeamRoute,

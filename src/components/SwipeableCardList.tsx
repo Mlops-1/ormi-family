@@ -7,7 +7,7 @@ import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
 import { Heart } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Props {
   items: SpotCard[];
@@ -49,6 +49,16 @@ export default function SwipeableCardList({
   }
 
   const currentCard = items[currentIndex];
+
+  // Debug logging
+  useEffect(() => {
+    if (currentCard) {
+      console.log('SwipeableCardList Current Card:', currentCard);
+      if (!currentCard.content_id) {
+        console.error('CRITICAL: Card missing content_id!', currentCard);
+      }
+    }
+  }, [currentCard]);
 
   /* Refactored handleNext to accept direction */
   const handleNext = useCallback(
@@ -252,8 +262,19 @@ export default function SwipeableCardList({
       )
     : null;
 
+  // Handle map mode toggle when clicking empty space
+  const handleContainerClick = (e: React.MouseEvent) => {
+    // If clicking the container itself (empty space), go back to map mode
+    if (e.target === e.currentTarget) {
+      onToggleMapMode?.();
+    }
+  };
+
   return (
-    <div className="w-full h-full flex flex-col justify-end relative">
+    <div
+      className="w-full h-full flex flex-col justify-end relative pointer-events-none"
+      onClick={handleContainerClick}
+    >
       <AnimatePresence>
         {showLikeOverlay && (
           <motion.div
@@ -295,7 +316,7 @@ export default function SwipeableCardList({
             dragElastic={1}
             onDragEnd={handleDragEnd}
             style={{ x }}
-            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0"
+            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto"
           >
             {/* Card Container */}
             <div className="bg-white dark:bg-slate-900 rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">

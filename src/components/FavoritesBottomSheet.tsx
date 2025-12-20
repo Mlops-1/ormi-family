@@ -83,7 +83,7 @@ export default function FavoritesBottomSheet({
             whileTap={{ scale: 0.95, y: 5 }}
             drag="y"
             dragConstraints={{ top: 0, bottom: 0 }}
-            onDragEnd={(e, { offset, velocity }) => {
+            onDragEnd={(_, { offset, velocity }) => {
               if (offset.y < -20 || velocity.y < -10) {
                 setIsOpen(true);
               }
@@ -108,7 +108,7 @@ export default function FavoritesBottomSheet({
             dragControls={controls}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={0.2}
-            onDragEnd={(e, info) => {
+            onDragEnd={(_, info) => {
               if (info.offset.y > 150) setIsOpen(false);
             }}
             className="absolute inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col pointer-events-auto"

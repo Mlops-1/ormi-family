@@ -3,7 +3,9 @@
  * Handles local storage and retry logic for failed analytics events
  */
 
+import { analyticsConfig } from '@/config/analytics';
 import type { AnalyticsEvent } from '@/types/analytics';
+import { KinesisClient } from './KinesisClient';
 
 export class EventBuffer {
   private readonly STORAGE_KEY = 'analytics_event_buffer';
@@ -88,8 +90,6 @@ export class EventBuffer {
 
       console.log(`Retrying ${bufferedEvents.length} buffered events`);
 
-      const { KinesisClient } = await import('./KinesisClient');
-      const { analyticsConfig } = await import('@/config/analytics');
       const kinesisClient = new KinesisClient(analyticsConfig);
 
       const successfulEvents: number[] = [];

@@ -34,7 +34,6 @@ interface PoiSuggestion {
 export default function GeoLocation({
   coordinates,
   onLocationChange,
-  onHelpClick,
   onUserClick,
   user,
   compact = false,

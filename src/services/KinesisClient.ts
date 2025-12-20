@@ -54,11 +54,13 @@ export class KinesisClient {
       );
     } catch (error) {
       console.error('❌ Kinesis Firehose 전송 실패:', error);
-      console.error('에러 상세:', {
-        name: error.name,
-        message: error.message,
-        code: error.$metadata?.httpStatusCode,
-        requestId: error.$metadata?.requestId,
+      const err = error as any;
+
+      console.error('Kinesis Error Detail:', {
+        name: err.name,
+        message: err.message,
+        code: err.$metadata?.httpStatusCode,
+        requestId: err.$metadata?.requestId,
       });
       throw error;
     }

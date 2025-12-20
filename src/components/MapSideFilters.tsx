@@ -167,7 +167,7 @@ export default function MapSideFilters({ isVisible }: Props) {
                 animate={{ x: 0, opacity: 1 }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }} // Just for click/touch feel
-                onDragEnd={(e, info) => {
+                onDragEnd={(_, info) => {
                   if (info.offset.x > 20) setFiltersHidden(false);
                 }}
                 onClick={() => setFiltersHidden(false)}
@@ -182,7 +182,7 @@ export default function MapSideFilters({ isVisible }: Props) {
                 animate={{ x: 0, opacity: 1 }}
                 drag="x"
                 dragConstraints={{ left: 0, right: 0 }}
-                onDragEnd={(e, info) => {
+                onDragEnd={(_, info) => {
                   if (info.offset.x < -20) setFiltersHidden(false);
                 }}
                 onClick={() => setFiltersHidden(false)}

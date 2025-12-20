@@ -11,7 +11,11 @@ export class WeatherService {
   private readonly API_BASE_URL =
     'https://api.openweathermap.org/data/2.5/weather';
 
-  constructor(private apiKey: string) {}
+  apiKey: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
 
   /**
    * Get current weather for given coordinates

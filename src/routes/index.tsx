@@ -1,7 +1,8 @@
 import motherAnimation from '@/assets/lotties/mother.json';
 import DogRiveAnimation from '@/components/DogRiveAnimation';
+import { useUserStore } from '@/store/userStore';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import Lottie from 'lottie-react';
 import { useEffect, useState } from 'react';
 
@@ -12,8 +13,13 @@ export const Route = createFileRoute('/')({
 function LandingPage() {
   const navigate = useNavigate();
 
+  const { setMode } = useUserStore();
+
   const handleModeSelect = (mode: 'toddler' | 'pet') => {
     const root = window.document.documentElement;
+
+    // Set Global Mode
+    setMode(mode);
 
     if (mode === 'toddler') {
       root.classList.remove('dark');
@@ -206,38 +212,83 @@ function LandingPage() {
           >
             {/* Speech Bubble for Waving Orange (ID 6) */}
             {item.id === 6 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, x: 10, y: 0 }}
-                animate={{
-                  opacity: 1,
-                  scale: 1,
-                  x: 0,
-                  y: [0, -4, 0],
-                }}
-                transition={{
-                  opacity: { delay: 1.2, duration: 0.5 },
-                  scale: { delay: 1.2, duration: 0.5, type: 'spring' },
-                  x: { delay: 1.2, duration: 0.5, type: 'spring' },
-                  y: {
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: 'easeInOut',
-                    delay: 1.2,
-                  },
-                }}
-                className="absolute right-[110%] top-[-20%] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 cursor-pointer pointer-events-auto"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsBubbleMoved(!isBubbleMoved);
-                }}
-              >
-                {/* Bubble Tail */}
-                <div className="absolute top-1/2 -right-1 w-2 h-2 bg-white/90 border-t border-r border-orange-100 transform rotate-45 -translate-y-1/2"></div>
+              <>
+                {/* 1. First Bubble: "Who did you come with?" - Moves UP on click */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: 10, y: 0 }}
+                  animate={{
+                    opacity: 1,
+                    scale: 1,
+                    x: 0,
+                    // If moved, slide up significantly (-50px) to make room
+                    y: isBubbleMoved ? -50 : [0, -4, 0],
+                  }}
+                  transition={{
+                    opacity: { delay: 1.2, duration: 0.5 },
+                    scale: { delay: 1.2, duration: 0.5, type: 'spring' },
+                    x: { delay: 1.2, duration: 0.5, type: 'spring' },
+                    y: isBubbleMoved
+                      ? { duration: 0.4, type: 'spring' } // Smooth slide up
+                      : {
+                          duration: 3,
+                          repeat: Infinity,
+                          ease: 'easeInOut',
+                          delay: 1.2,
+                        }, // Bobbing
+                  }}
+                  className="absolute right-[110%] top-[-20%] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 cursor-pointer pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsBubbleMoved(!isBubbleMoved);
+                  }}
+                >
+                  {/* Bubble Tail - Only show if NOT moved */}
+                  {!isBubbleMoved && (
+                    <div className="absolute top-1/2 -right-1 w-2 h-2 bg-white/90 border-t border-r border-orange-100 transform rotate-45 -translate-y-1/2"></div>
+                  )}
 
-                <p className="font-jeju text-jeju-light-text-primary text-xs md:text-sm leading-none pt-1">
-                  제주도, 누구랑 오셨어요?
-                </p>
-              </motion.div>
+                  <p className="font-jeju text-jeju-light-text-primary text-xs md:text-sm leading-none pt-1">
+                    제주도, 누구랑 오셨어요?
+                  </p>
+                </motion.div>
+
+                {/* 2. Second Bubble: "Select companion!" - Appears below with 10px gap */}
+                <AnimatePresence>
+                  {isBubbleMoved && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0, y: -10, x: 0 }}
+                      animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
+                      exit={{
+                        opacity: 0,
+                        scale: 0,
+                        transition: { duration: 0.2 },
+                      }}
+                      transition={{
+                        delay: 0.1,
+                        type: 'spring',
+                        stiffness: 200,
+                        damping: 15,
+                      }}
+                      // Positioned relative to the first bubble's original position but shifted down by the new layout
+                      // Since first bubble moves UP to -50px, we position this one to naturally sit below it + 10px gap
+                      // Top -20% (approx -10px) - 50px (animation) = -60px (Top of 1st)
+                      // Height of bubble is approx 35px. Bottom of 1st = -25px.
+                      // We want 2nd bubble top at -15px.
+                      // Let's use absolute positioning relative to parent (icon).
+                      // We'll hardcode the "moved up" state visual using top/margin logic or just simple pixel math relative to parent.
+                      // Simpler: Just place it at top: -10px which is roughly 10px below the moved-up bubble (at -50px top + ~35px height)
+                      className="absolute right-[110%] top-[-10px] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 pointer-events-none origin-top-right"
+                    >
+                      {/* Tail for this new bubble pointing to the orange */}
+                      <div className="absolute top-1/2 -right-1 w-2 h-2 bg-white/90 border-t border-r border-orange-100 transform rotate-45 -translate-y-1/2"></div>
+
+                      <p className="font-jeju text-jeju-light-text-primary text-xs md:text-sm leading-none pt-1">
+                        여행 동반자를 선택해주세요!
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
             )}
 
             {/* 2. BOBBING & INTERACTION WRAPPER (Handles Float Loop + Bounce Effect) */}
@@ -308,7 +359,7 @@ function LandingPage() {
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 md:gap-12 w-full max-w-4xl px-4 md:px-6 z-10 -mt-5 md:-mt-12">
+      <div className="flex flex-col md:flex-row gap-0 md:gap-12 w-full max-w-4xl px-4 md:px-6 z-10 -mt-5 md:-mt-12">
         {/* Toddler Option */}
         <motion.button
           onClick={() => handleModeSelect('toddler')}

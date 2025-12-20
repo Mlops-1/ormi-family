@@ -1,4 +1,3 @@
-import type { Coordinates } from '@/types/geo';
 import {
   type DragEndEvent,
   DndContext,
@@ -27,12 +26,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export interface RoutePoint {
-  id: string; // unique id for dnd
-  type: 'start' | 'end' | 'waypoint';
-  name: string;
-  coordinates: Coordinates;
-}
+import type { RoutePoint } from '@/types/map';
 
 interface Props {
   startPoint: RoutePoint | null;

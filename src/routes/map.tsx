@@ -9,19 +9,20 @@ import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import RouteNavigation, { type RoutePoint } from '@/components/RouteNavigation';
+import RouteNavigation from '@/components/RouteNavigation';
 import SpotInteractionSheet, {
   type RouteAction,
 } from '@/components/SpotInteractionSheet';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
-import { BARRIER_CONFIG, CATEGORY_CONFIG } from '@/constants/filterConfig';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import { INITIAL_CATEGORY_IDS, useFilterStore } from '@/store/filterStore';
+import { useMapStore } from '@/store/mapStore';
 import type { Coordinates } from '@/types/geo';
-import type { AccessibilityType, SpotCard } from '@/types/spot';
+import type { RoutePoint } from '@/types/map';
+import type { AccessibilityType } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -41,35 +42,47 @@ function MapPage() {
 function MapPageContent() {
   const navigate = useNavigate();
   const location = useGeoLocation();
-  const { profile } = useAuth();
-  const [manualLocation, setManualLocation] = useState<Coordinates | null>(
-    null
-  );
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [focusedSpotIndex, setFocusedSpotIndex] = useState(0);
-  const [isMapMode, setIsMapMode] = useState(false);
-  const [notifications, setNotifications] = useState<
-    Array<{ id: string; content: string }>
-  >([]);
+  const { profile } = useAuth(); // Keep using useAuth for now as source of truth for profile
 
-  // Routing State
+  // Global State
+  const {
+    isMapMode,
+    setMapMode,
+    focusedSpotIndex,
+    setFocusedSpotIndex,
+    manualLocation,
+    setManualLocation,
+    showOnboarding,
+    setShowOnboarding,
+    notifications,
+    addNotification,
+    removeNotification,
+    allSpots,
+    setAllSpots,
+    startPoint,
+    endPoint,
+    wayPoints,
+    routePath,
+    setRoutePath,
+    routeSummary,
+    setRouteSummary,
+    setStartPoint,
+    setEndPoint,
+    setWayPoints,
+    resetRoute,
+  } = useMapStore();
 
-  const [startPoint, setStartPoint] = useState<RoutePoint | null>(null);
-  const [endPoint, setEndPoint] = useState<RoutePoint | null>(null);
-  const [wayPoints, setWayPoints] = useState<RoutePoint[]>([]);
-  const [routePath, setRoutePath] = useState<Coordinates[] | null>(null);
-  const [routeSummary, setRouteSummary] = useState<{
-    distance: number;
-    time: number;
-  } | null>(null);
+  const {
+    selectedCategoryIds,
+    selectedBarrierIds,
+    setSelectedCategoryIds,
+    setSelectedBarrierIds,
+  } = useFilterStore();
 
-  // Infinite Scroll State
-  const [allSpots, setAllSpots] = useState<SpotCard[]>([]);
   const [isFetching, setIsFetching] = useState(false);
-
-  // Theme State for Marker/Route Color
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Theme Detection
   useEffect(() => {
     const checkTheme = () => {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
@@ -83,19 +96,9 @@ function MapPageContent() {
     return () => observer.disconnect();
   }, []);
 
-  // Store Filter State
-  const {
-    selectedCategoryIds,
-    selectedBarrierIds,
-    setSelectedCategoryIds,
-    setSelectedBarrierIds,
-    categoryOrderedIds,
-    barrierOrderedIds,
-  } = useFilterStore();
-
   const effectiveCoordinates = manualLocation || location.coordinates;
 
-  // Load Spots Function
+  // Load Spots (Converted to work with Store)
   const loadSpots = useCallback(
     async (isReset = false) => {
       if (!effectiveCoordinates || isFetching) return;
@@ -114,27 +117,15 @@ function MapPageContent() {
 
         setAllSpots((prev) => {
           if (isReset) return newSpots;
-          // Filter duplicates
           const existingIds = new Set(prev.map((s) => s.content_id));
           const uniqueNew = newSpots.filter(
             (s) => !existingIds.has(s.content_id)
           );
           if (uniqueNew.length === 0) return prev;
 
-          // Notify if new spots added via scrolling
+          // Notification handled by store
           if (!isReset) {
-            const id = Date.now().toString();
-            setNotifications((prevNotifs) => [
-              ...prevNotifs,
-              { id, content: '새로운 추천 장소를 불러왔습니다.' },
-            ]);
-            setTimeout(
-              () =>
-                setNotifications((prevNotifs) =>
-                  prevNotifs.filter((n) => n.id !== id)
-                ),
-              2000
-            );
+            addNotification('새로운 추천 장소를 불러왔습니다.');
           }
 
           return [...prev, ...uniqueNew];
@@ -156,6 +147,7 @@ function MapPageContent() {
 
   // Client-side Accessibility Filter logic
   const { displaySpots, isFallback } = useMemo(() => {
+    // allSpots comes from store now
     if (!allSpots) return { displaySpots: [], isFallback: false };
 
     let filtered = allSpots;
@@ -181,30 +173,12 @@ function MapPageContent() {
 
   const handleLocationChange = (coords: Coordinates) => {
     setManualLocation(coords);
-    const id = Date.now().toString();
-    setNotifications((prev) => [
-      ...prev,
-      { id, content: '위치가 변경되었습니다.' },
-    ]);
-    setTimeout(() => {
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    }, 3000);
-  };
-
-  const handleIndexChange = (index: number) => {
-    setFocusedSpotIndex(index);
-  };
-
-  const handleLoadMore = () => {
-    if (!isFetching) {
-      loadSpots(false);
-    }
+    addNotification('위치가 변경되었습니다.');
   };
 
   const handleMarkerClick = (index: number) => {
     setFocusedSpotIndex(index);
-    // Always switch to Map Mode to show Header and Menu
-    setIsMapMode(true);
+    setMapMode(true);
   };
 
   const getDistanceFromLatLonInMeters = (
@@ -213,7 +187,7 @@ function MapPageContent() {
     lat2: number,
     lon2: number
   ) => {
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a =
@@ -223,8 +197,8 @@ function MapPageContent() {
         Math.sin(dLon / 2) *
         Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
-    return Math.floor(d * 1000); // Meters
+    const d = R * c;
+    return Math.floor(d * 1000);
   };
 
   // Route Logic
@@ -234,65 +208,9 @@ function MapPageContent() {
     return {
       id: spot.content_id.toString(),
       name: spot.title,
-      type: 'waypoint', // Default type, will change based on assignment
+      type: 'waypoint',
       coordinates: { lat: spot.lat, lon: spot.lon },
     };
-  };
-
-  const handleRouteOptionSelect = async (action: RouteAction) => {
-    const selectedSpot = getSelectedSpotPoint();
-    if (!selectedSpot) return;
-
-    // Note: We don't need setShowRouteMenu anymore as the sheet closes when we initiate action or explicitly close
-    // But logically, if we start routing, isRoutingMode becomes true, and the sheet might hide if we base it on !isRoutingMode
-
-    if (action === 'fast') {
-      // Fast Route: User Loc -> Selected Spot
-      if (!location.loaded || !location.coordinates) {
-        alert('현재 위치를 불러올 수 없어 빠른 길찾기를 사용할 수 없습니다.');
-        return;
-      }
-      const start: RoutePoint = {
-        id: 'user-loc',
-        name: '내 위치',
-        type: 'start',
-        coordinates: location.coordinates,
-      };
-      const end: RoutePoint = {
-        ...selectedSpot,
-        type: 'end',
-      };
-      setStartPoint(start);
-      setEndPoint(end);
-      setWayPoints([]);
-      // Auto fetch triggered by effect or we call explicitly?
-      // Better to trigger explicitly to be sure.
-      calculateRoute(start, end, []);
-    } else if (action === 'start') {
-      setStartPoint({ ...selectedSpot, type: 'start' });
-    } else if (action === 'end') {
-      // Smart Logic: If End exists, push old End to Waypoints (Extend Trip)
-      if (endPoint) {
-        const oldEndAsWaypoint: RoutePoint = {
-          ...endPoint,
-          type: 'waypoint',
-          id: `wp-from-end-${Date.now()}`,
-        };
-        // Avoid duplicates if user clicks same spot
-        if (
-          endPoint.coordinates.lat !== selectedSpot.coordinates.lat ||
-          endPoint.coordinates.lon !== selectedSpot.coordinates.lon
-        ) {
-          setWayPoints((prev) => [...prev, oldEndAsWaypoint]);
-        }
-      }
-      setEndPoint({ ...selectedSpot, type: 'end' });
-    } else if (action === 'waypoint') {
-      setWayPoints((prev) => [
-        ...prev,
-        { ...selectedSpot, type: 'waypoint', id: `wp-${Date.now()}` },
-      ]);
-    }
   };
 
   const calculateRoute = async (
@@ -303,7 +221,6 @@ function MapPageContent() {
     try {
       const passList = ways
         .filter((w) => {
-          // Filter out waypoints that are effectively start or end to prevent loops
           const isStart =
             Math.abs(w.coordinates.lat - start.coordinates.lat) < 0.0001 &&
             Math.abs(w.coordinates.lon - start.coordinates.lon) < 0.0001;
@@ -335,12 +252,11 @@ function MapPageContent() {
       });
       setRoutePath(path);
 
-      // Extract Summary (Time/Distance)
       const props = res.features[0].properties;
       if (props.totalTime || props.totalDistance) {
         setRouteSummary({
-          time: props.totalTime || 0, // seconds
-          distance: props.totalDistance || 0, // meters
+          time: props.totalTime || 0,
+          distance: props.totalDistance || 0,
         });
       } else {
         setRouteSummary(null);
@@ -351,40 +267,78 @@ function MapPageContent() {
     }
   };
 
-  // Re-calculate when points change (Requirement 9)
+  // Re-calculate when points change
   useEffect(() => {
     if (startPoint && endPoint) {
       calculateRoute(startPoint, endPoint, wayPoints);
     } else {
       setRoutePath(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startPoint, endPoint, wayPoints]);
 
-  const handleResetRoute = () => {
-    setStartPoint(null);
-    setEndPoint(null);
-    setWayPoints([]);
-    setRoutePath(null);
-    setRouteSummary(null);
+  const handleRouteOptionSelect = async (action: RouteAction) => {
+    const selectedSpot = getSelectedSpotPoint();
+    if (!selectedSpot) return;
+
+    if (action === 'fast') {
+      if (!location.loaded || !location.coordinates) {
+        alert('현재 위치를 불러올 수 없어 빠른 길찾기를 사용할 수 없습니다.');
+        return;
+      }
+      const start: RoutePoint = {
+        id: 'user-loc',
+        name: '내 위치',
+        type: 'start',
+        coordinates: location.coordinates,
+      };
+      const end: RoutePoint = {
+        ...selectedSpot,
+        type: 'end',
+      };
+      setStartPoint(start);
+      setEndPoint(end);
+      setWayPoints([]);
+      // Should trigger effect
+    } else if (action === 'start') {
+      setStartPoint({ ...selectedSpot, type: 'start' });
+    } else if (action === 'end') {
+      if (endPoint) {
+        const oldEndAsWaypoint: RoutePoint = {
+          ...endPoint,
+          type: 'waypoint',
+          id: `wp-from-end-${Date.now()}`,
+        };
+        if (
+          endPoint.coordinates.lat !== selectedSpot.coordinates.lat ||
+          endPoint.coordinates.lon !== selectedSpot.coordinates.lon
+        ) {
+          setWayPoints((prev) => [...prev, oldEndAsWaypoint]);
+        }
+      }
+      setEndPoint({ ...selectedSpot, type: 'end' });
+    } else if (action === 'waypoint') {
+      setWayPoints((prev) => [
+        ...prev,
+        { ...selectedSpot, type: 'waypoint', id: `wp-${Date.now()}` },
+      ]);
+    }
   };
 
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
 
   return (
     <div className="relative w-full h-dvh overflow-hidden bg-gray-100 dark:bg-gray-900">
-      {/* Background Map - Updated with User & Center Location */}
       <BackgroundMap
         spots={displaySpots || []}
         currentSpotIndex={focusedSpotIndex}
         isMapMode={isMapMode}
         onMapInteraction={() => {
-          // Only enable map mode if not already active to avoid fighting with marker click
-          if (!isMapMode) setIsMapMode(true);
+          if (!isMapMode) setMapMode(true);
         }}
         onMarkerClick={handleMarkerClick}
         userLocation={location.coordinates}
         centerLocation={effectiveCoordinates}
-        // Route Props
         routeStart={startPoint?.coordinates}
         routeEnd={endPoint?.coordinates}
         routeWaypoints={wayPoints.map((w) => w.coordinates)}
@@ -392,12 +346,9 @@ function MapPageContent() {
         markerTheme={isDarkMode ? 'green' : 'orange'}
       />
 
-      {/* Map Mode Return Button - Show only if Sheet is NOT visible to avoid overlap/redundancy */}
-
-      {/* Overlay Content */}
       <div className="absolute inset-0 w-full h-full pointer-events-none flex justify-center">
         <div className="w-full h-full flex flex-col relative">
-          {/* Global Notification */}
+          {/* Notifications */}
           {notifications.length > 0 && (
             <div className="pointer-events-auto z-50">
               <AppNotification
@@ -405,15 +356,11 @@ function MapPageContent() {
                   type: 'info',
                   content: n.content,
                   id: n.id,
-                  onDismiss: () =>
-                    setNotifications((prev) =>
-                      prev.filter((x) => x.id !== n.id)
-                    ),
+                  onDismiss: () => removeNotification(n.id),
                 }))}
               />
             </div>
           )}
-
           {/* Fallback Message */}
           {isFallback && !isMapMode && (
             <div className="absolute top-44 left-0 right-0 z-40 px-4 animate-fade-in pointer-events-none">
@@ -423,131 +370,46 @@ function MapPageContent() {
               </div>
             </div>
           )}
-
           {/* Floating Top Navigation */}
           <div
             className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
-              // Hide ONLY if Routing Mode AND Map Mode (Routing header takes over in map mode)
               isRoutingMode && isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
             }`}
           >
-            {/* Centered Top Nav Info */}
             <div className="pointer-events-auto flex-1 min-w-0 w-full mx-auto z-40">
               <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
-                <div
-                  className={`pointer-events-auto shrink-0 z-50 transition-all duration-300 ${isMapMode ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}
-                >
+                <div className="pointer-events-auto shrink-0 z-50 transition-all duration-300 w-auto opacity-100">
                   <CategoryFilter />
                 </div>
-
-                {/* GeoLocation: Always visible */}
-                <div
-                  className={`hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0 ${isMapMode ? 'opacity-0' : ''}`}
-                />
-
+                <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
                 <div className="flex-1 min-w-0 flex justify-center overflow-hidden">
                   <GeoLocation
                     coordinates={effectiveCoordinates}
                     onLocationChange={handleLocationChange}
-                    onHelpClick={() => setShowOnboarding(true)}
                     onUserClick={() => navigate({ to: '/user-info' })}
                     user={profile}
                     compact={true}
                   />
                 </div>
-
-                {/* Weather & Mode: Always Visible (restored) */}
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
-
                 <div className="shrink-0 flex justify-center">
                   <WeatherWidget coordinates={effectiveCoordinates} />
                 </div>
-
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
-
                 <div className="shrink-0">
                   <ModeToggle />
                 </div>
-
                 <div className="hidden md:block h-6 w-px bg-gray-200 mx-1 shrink-0" />
-
-                <div
-                  className={`pointer-events-auto shrink-0 z-50 ml-auto transition-all duration-300 ${isMapMode ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}
-                >
+                <div className="pointer-events-auto shrink-0 z-50 ml-auto transition-all duration-300 w-auto opacity-100">
                   <BarrierFreeFilter />
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Side Piano Key Filters (Visible except in Routing Mode) */}
-          {!isRoutingMode && (
-            <>
-              {/* Left Side: Category Config */}
-              <div className="absolute top-28 left-0 z-40 flex flex-col gap-3 pointer-events-auto">
-                {categoryOrderedIds.map((id) => {
-                  const config = CATEGORY_CONFIG[id];
-                  const isActive = selectedCategoryIds.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      onClick={() =>
-                        setSelectedCategoryIds(
-                          isActive
-                            ? selectedCategoryIds.filter((cid) => cid !== id)
-                            : [...selectedCategoryIds, id]
-                        )
-                      }
-                      className={`flex items-center gap-2 pl-4 pr-3 py-3 rounded-r-2xl shadow-md transition-all duration-300 ${
-                        isActive
-                          ? 'bg-orange-500 dark:bg-ormi-green-600 text-white translate-x-0'
-                          : 'bg-white text-gray-400 -translate-x-1 hover:translate-x-0'
-                      }`}
-                    >
-                      <span className="shrink-0">{config.icon}</span>
-                      <span className="font-bold text-sm hidden md:block whitespace-nowrap">
-                        {config.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Right Side: Barrier Config */}
-              <div className="absolute top-28 right-0 z-40 flex flex-col gap-3 pointer-events-auto">
-                {barrierOrderedIds.map((id) => {
-                  const config = BARRIER_CONFIG[id];
-                  const isActive = selectedBarrierIds.includes(id);
-                  return (
-                    <button
-                      key={id}
-                      onClick={() =>
-                        setSelectedBarrierIds(
-                          isActive
-                            ? selectedBarrierIds.filter((bid) => bid !== id)
-                            : [...selectedBarrierIds, id]
-                        )
-                      }
-                      className={`flex items-center gap-2 pr-4 pl-3 py-3 rounded-l-2xl shadow-md transition-all duration-300 ${
-                        isActive
-                          ? 'bg-orange-500 dark:bg-ormi-green-600 text-white translate-x-0'
-                          : 'bg-white text-gray-400 translate-x-1 hover:translate-x-0'
-                      }`}
-                    >
-                      {/* Icon only on Mobile, Label on Desktop or nice layout? 
-                          Image 1 shows Icons only (stacked).
-                          Let's stick to Icons to save space on mobile map. */}
-                      <span className="shrink-0">{config.icon}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-
-          {/* Spot Interaction Sheet (Combined Header & Route Menu) */}
+          {/* Side Piano Keys Removed as per user request */}
+          {/* Spot Interaction Sheet */}
           {isMapMode && displaySpots[focusedSpotIndex] && (
             <div className="pointer-events-auto">
               <SpotInteractionSheet
@@ -563,18 +425,15 @@ function MapPageContent() {
                     : undefined
                 }
                 markerTheme={isDarkMode ? 'green' : 'orange'}
-                onClose={() => {
-                  setFocusedSpotIndex(-1);
-                }}
-                onViewCard={() => setIsMapMode(false)}
+                onClose={() => setFocusedSpotIndex(-1)}
+                onViewCard={() => setMapMode(false)}
                 onRouteSelect={handleRouteOptionSelect}
                 hasStart={!!startPoint}
                 hasEnd={!!endPoint}
               />
             </div>
           )}
-
-          {/* Route Navigation Header (Overlay) */}
+          {/* Route Navigation Header - Needs extraction ideally, but keeping inline for logic proximity unless forced */}
           {isRoutingMode && isMapMode && (
             <div className="absolute top-4 left-0 right-0 z-50 px-4 animate-slide-down pointer-events-auto">
               <RouteNavigation
@@ -599,74 +458,49 @@ function MapPageContent() {
                 onRemovePoint={(id) => {
                   if (startPoint?.id === id) setStartPoint(null);
                   else if (endPoint?.id === id) setEndPoint(null);
-                  else setWayPoints((w) => w.filter((p) => p.id !== id));
+                  else
+                    setWayPoints((w: RoutePoint[]) =>
+                      w.filter((p) => p.id !== id)
+                    );
                 }}
                 onSearch={() => {
                   if (!endPoint) return;
                   const { name, coordinates } = endPoint;
-                  // Tmap Deep Link Scheme
-                  // Using simplistic URL scheme for mobile/web fallback
-                  // tmap://route?goalname={name}&goalx={lon}&goaly={lat}
                   const url = `tmap://route?goalname=${encodeURIComponent(
                     name
                   )}&goalx=${coordinates.lon}&goaly=${coordinates.lat}`;
-
-                  // Fallback to store or web if needed (basic implementation)
                   window.location.href = url;
-
-                  // For better UX, arguably we could verify installation, but for this web app,
-                  // triggering the scheme is standard.
-                  // If failing, maybe open a new window to Tmap web?
-                  // Let's safe-guard with a timeout fallback or just allow browser handling.
-                  setTimeout(() => {
-                    // Fallback logic if needed, e.g. App Store
-                  }, 500);
                 }}
-                onReset={handleResetRoute}
+                onReset={resetRoute}
               />
             </div>
           )}
-
           <FavoritesBottomSheet
             onSpotClick={(spot) => {
-              // 1. Ensure spot is in allSpots
               let updatedAllSpots = allSpots;
               const exists = allSpots.find(
                 (s) => s.content_id === spot.content_id
               );
               if (!exists) {
+                // If adding from favs, update store
+                setAllSpots((prev) => [spot, ...prev]);
                 updatedAllSpots = [spot, ...allSpots];
-                setAllSpots(updatedAllSpots);
               }
 
-              // 2. Reset Filters to ensure spot shows up
               setSelectedCategoryIds(INITIAL_CATEGORY_IDS);
               setSelectedBarrierIds([]);
+              setMapMode(false);
 
-              // 3. Switch Mode
-              setIsMapMode(false);
-
-              // 4. Set Focus Index
-              // Since filters are reset, displaySpots will eventually equal allSpots (filtered by barrier).
-              // We need to find the index of this spot in the new list.
-              // Logic: displaySpots updates next render.
-              // For now, we set index based on current knowledge or force 0 if we prepended.
-              // A safer way is to rely on content_id matching, but SwipeableCardList takes numeric index.
-              // If we just added it to the TOP, it's 0.
-              // If it existed, we need to find it.
               const idx = updatedAllSpots.findIndex(
                 (s) => s.content_id === spot.content_id
               );
               setFocusedSpotIndex(idx !== -1 ? idx : 0);
             }}
           />
-
           <OnboardingOverlay
             isVisible={showOnboarding}
             onClose={() => setShowOnboarding(false)}
           />
-
-          {/* Bottom Card Area */}
           <div
             className={`flex-1 flex flex-col justify-end min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
           >
@@ -683,7 +517,7 @@ function MapPageContent() {
                     scale: 0.9,
                     transition: { duration: 0.4, ease: 'easeIn' },
                   }}
-                  className="w-full h-full flex flex-col relative z-20"
+                  className="w-full h-full md:w-[380px] md:h-[calc(100vh-2rem)] md:fixed md:left-4 md:top-4 md:z-30 md:rounded-3xl md:overflow-hidden flex flex-col relative z-20 pointer-events-none"
                 >
                   {displaySpots.length === 0 && !isFetching ? (
                     <div className="mt-auto mx-4 text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
@@ -695,14 +529,16 @@ function MapPageContent() {
                       userLocation={
                         location.loaded ? effectiveCoordinates : undefined
                       }
-                      onIndexChange={handleIndexChange}
-                      onToggleMapMode={() => setIsMapMode(true)}
-                      onLoadMore={handleLoadMore}
+                      onIndexChange={(index) => setFocusedSpotIndex(index)}
+                      onToggleMapMode={() => setMapMode(true)}
+                      onLoadMore={() => {
+                        if (!isFetching) loadSpots(false);
+                      }}
                       selectedIndex={
                         focusedSpotIndex === -1 ? 0 : focusedSpotIndex
-                      } // Handle -1 case
+                      }
                       onNavigate={() => {
-                        setIsMapMode(true);
+                        setMapMode(true);
                       }}
                     />
                   )}
