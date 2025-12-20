@@ -33,6 +33,7 @@ function LandingPage() {
 
   // Responsive hook logic for icon positioning
   const [isDesktop, setIsDesktop] = useState(true);
+  const [isBubbleMoved, setIsBubbleMoved] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
@@ -181,8 +182,16 @@ function LandingPage() {
             animate={{
               opacity: 1,
               scale: 1,
-              left: isDesktop ? item.desktop.left : item.mobile.left,
-              top: isDesktop ? item.desktop.top : item.mobile.top,
+              left: isDesktop
+                ? item.desktop.left
+                : item.id === 6 && isBubbleMoved
+                  ? '78%'
+                  : item.mobile.left,
+              top: isDesktop
+                ? item.desktop.top
+                : item.id === 6 && isBubbleMoved
+                  ? '18%'
+                  : item.mobile.top,
             }}
             transition={{
               duration: 1.2,
@@ -198,10 +207,29 @@ function LandingPage() {
             {/* Speech Bubble for Waving Orange (ID 6) */}
             {item.id === 6 && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.8, x: 10 }}
-                animate={{ opacity: 1, scale: 1, x: 0 }}
-                transition={{ delay: 1.2, duration: 0.5, type: 'spring' }}
-                className="absolute right-[110%] top-[-20%] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 pointer-events-none"
+                initial={{ opacity: 0, scale: 0.8, x: 10, y: 0 }}
+                animate={{
+                  opacity: 1,
+                  scale: 1,
+                  x: 0,
+                  y: [0, -4, 0],
+                }}
+                transition={{
+                  opacity: { delay: 1.2, duration: 0.5 },
+                  scale: { delay: 1.2, duration: 0.5, type: 'spring' },
+                  x: { delay: 1.2, duration: 0.5, type: 'spring' },
+                  y: {
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: 1.2,
+                  },
+                }}
+                className="absolute right-[110%] top-[-20%] w-max bg-white/90 backdrop-blur-sm px-3 py-2 rounded-xl shadow-md border border-orange-100 z-50 cursor-pointer pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsBubbleMoved(!isBubbleMoved);
+                }}
               >
                 {/* Bubble Tail */}
                 <div className="absolute top-1/2 -right-1 w-2 h-2 bg-white/90 border-t border-r border-orange-100 transform rotate-45 -translate-y-1/2"></div>
@@ -217,10 +245,23 @@ function LandingPage() {
               animate={{
                 y: [0, -15, 0],
                 rotate: [0, item.id % 2 === 0 ? 5 : -5, 0],
+                ...(item.id === 6 && {
+                  filter: [
+                    'drop-shadow(0 0 2px rgba(251,146,60,0.4))',
+                    'drop-shadow(0 0 10px rgba(251,146,60,0.7))',
+                    'drop-shadow(0 0 2px rgba(251,146,60,0.4))',
+                  ],
+                }),
               }}
               // Bounce/Pop effect on hover/tap
               whileHover={{ scale: 1.2, rotate: item.id % 2 === 0 ? 15 : -15 }}
               whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                if (item.id === 6) {
+                  e.stopPropagation();
+                  setIsBubbleMoved(!isBubbleMoved);
+                }
+              }}
               transition={{
                 y: {
                   duration: 3 + (item.id % 3),
@@ -232,13 +273,23 @@ function LandingPage() {
                   repeat: Infinity,
                   ease: 'easeInOut',
                 },
+                // Glow pulse timing
+                filter: {
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: 'easeInOut',
+                },
                 // Quick transition for hover interactions
                 scale: { duration: 0.2 },
               }}
               className="w-full h-full relative cursor-pointer"
             >
               {/* 3. CLIPPER (Actual Mask for the Sprite) - Now moves WITH the bobber, so no cutoff */}
-              <div className="w-full h-full overflow-hidden rounded-full shadow-sm bg-white/10 backdrop-blur-[1px]">
+              <div
+                className={`w-full h-full overflow-hidden rounded-full shadow-sm bg-white/10 backdrop-blur-[1px] ${
+                  item.id === 6 ? 'ring-1 ring-orange-100' : ''
+                }`}
+              >
                 <img
                   src="/src/assets/images/floating_icons_diverse.png"
                   alt="decoration"
@@ -276,8 +327,11 @@ function LandingPage() {
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">
             아이와 함께
           </h2>
-          <p className="text-xs md:text-sm text-gray-500">
+          <p className="text-sm md:text-md text-gray-500">
             유모차 접근성, 수유실 정보
+          </p>
+          <p className="text-sm md:text-md text-gray-500">
+            클릭해서 추천받고 시작하기
           </p>
         </motion.button>
 
@@ -289,15 +343,18 @@ function LandingPage() {
           className="flex-1 min-w-0 p-4 md:p-8 transition-all group relative flex flex-col items-center"
         >
           {/* Rive Animation Wrapper for Alignment */}
-          <div className="w-full h-40 md:h-80 mb-4 md:mb-6 relative -bottom-4.5">
+          <div className="w-full h-40 md:h-80 mb-4 md:mb-6 relative md:-bottom-4.5">
             <DogRiveAnimation />
           </div>
 
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">
             반려견과 함께
           </h2>
-          <p className="text-xs md:text-sm text-gray-500">
+          <p className="text-sm md:text-md text-gray-500">
             반려동물 동반 가능 장소
+          </p>
+          <p className="text-sm md:text-md text-gray-500">
+            클릭해서 추천받고 시작하기
           </p>
         </motion.button>
       </div>
