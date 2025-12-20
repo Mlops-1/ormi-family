@@ -332,7 +332,7 @@ export default function GeoLocation({
             className={`${mainTextColorClass} shrink-0`}
           />
           <div className="flex flex-col items-start min-w-0 w-full">
-            <span className="text-base md:text-lg text-gray-800 dark:text-gray-100 leading-tight text-left w-full">
+            <span className="text-base md:text-lg text-gray-900 leading-tight text-left w-full">
               {addressData ? (
                 <>
                   <span className="md:hidden truncate block w-full">

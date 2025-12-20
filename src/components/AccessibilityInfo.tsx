@@ -1,6 +1,7 @@
 import iconBabyChair from '@/assets/images/icon_baby_chair.svg';
 import iconLactation from '@/assets/images/icon_lactation.svg';
 import iconStroller from '@/assets/images/icon_stroller.svg';
+import { useUserStore } from '@/store/userStore';
 import type { SpotCard } from '@/types/spot';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -24,6 +25,20 @@ interface IconItem {
 
 export default function AccessibilityInfo({ spot }: Props) {
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+  const { mode } = useUserStore();
+  const isPetMode = mode === 'pet';
+
+  const mainColorClass = isPetMode ? 'bg-ormi-green-500' : 'bg-orange-500';
+  const mainSubColorClass = isPetMode ? 'bg-ormi-green-50' : 'bg-orange-50';
+  const mainTextColorClass = isPetMode
+    ? 'text-ormi-green-500'
+    : 'text-orange-500';
+  const mainTextSubClass = isPetMode
+    ? 'text-ormi-green-400'
+    : 'text-orange-400';
+  const mainTooltipTextColor = isPetMode
+    ? 'text-ormi-green-400'
+    : 'text-orange-400';
 
   const icons: IconItem[] = [
     {
@@ -35,7 +50,7 @@ export default function AccessibilityInfo({ spot }: Props) {
           alt="stroller"
           width={size}
           height={size}
-          className={`${className} dark:invert`}
+          className={className}
         />
       ),
     },
@@ -53,7 +68,7 @@ export default function AccessibilityInfo({ spot }: Props) {
           alt="lactation room"
           width={size}
           height={size}
-          className={`${className} dark:invert`}
+          className={className}
         />
       ),
     },
@@ -66,7 +81,7 @@ export default function AccessibilityInfo({ spot }: Props) {
           alt="baby chair"
           width={size}
           height={size}
-          className={`${className} dark:invert`}
+          className={className}
         />
       ),
     },
@@ -105,9 +120,7 @@ export default function AccessibilityInfo({ spot }: Props) {
   return (
     <div className="w-full mt-6">
       <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
-          편의 시설
-        </h3>
+        <h3 className="text-lg font-bold text-gray-900">편의 시설</h3>
       </div>
 
       <div className="grid grid-cols-4 gap-4">
@@ -126,8 +139,8 @@ export default function AccessibilityInfo({ spot }: Props) {
               w-14 h-14 rounded-[20px] flex items-center justify-center transition-all duration-300
               ${
                 activeTooltip === item.key
-                  ? 'bg-orange-500 text-white shadow-lg scale-105'
-                  : 'bg-orange-50 dark:bg-slate-800 text-orange-500 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-slate-700'
+                  ? `${mainColorClass} text-white shadow-lg scale-105`
+                  : `${mainSubColorClass} ${mainTextColorClass} hover:opacity-80`
               }
             `}
             >
@@ -148,7 +161,7 @@ export default function AccessibilityInfo({ spot }: Props) {
                   style={{ left: '50%', x: '-50%' }}
                 >
                   <div className="bg-gray-900/95 text-white text-xs p-3 rounded-xl shadow-xl backdrop-blur-md border border-white/10">
-                    <div className="font-bold mb-1 text-orange-400">
+                    <div className={`font-bold mb-1 ${mainTooltipTextColor}`}>
                       {item.label}
                     </div>
                     <div className="leading-relaxed text-gray-100">

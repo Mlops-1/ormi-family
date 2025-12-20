@@ -155,7 +155,8 @@ function MapPageContent() {
     let filtered = allSpots;
     if (selectedBarrierIds.length > 0) {
       filtered = allSpots.filter((spot) => {
-        return selectedBarrierIds.some((filter: AccessibilityType) => {
+        // Change from .some (OR) to .every (AND) logic
+        return selectedBarrierIds.every((filter: AccessibilityType) => {
           const val = spot[filter];
           return val && val.trim() !== '';
         });
@@ -168,7 +169,8 @@ function MapPageContent() {
       allSpots.length > 0;
 
     return {
-      displaySpots: fallback ? allSpots : filtered,
+      // Strictly strictly matching markers only
+      displaySpots: filtered,
       isFallback: fallback,
     };
   }, [allSpots, selectedBarrierIds]);

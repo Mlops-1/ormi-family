@@ -3,6 +3,7 @@ import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import AccessibilityInfo from '@/components/AccessibilityInfo';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
@@ -30,6 +31,21 @@ export default function SwipeableCardList({
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(selectedIndex);
   const [prevSelectedIndex, setPrevSelectedIndex] = useState(selectedIndex);
+  const { mode } = useUserStore();
+  const isPetMode = mode === 'pet';
+
+  const mainColorClass = isPetMode ? 'bg-ormi-green-500' : 'bg-orange-500';
+  const mainHoverClass = isPetMode
+    ? 'hover:bg-ormi-green-600'
+    : 'hover:bg-orange-600';
+  const mainTextColorClass = isPetMode
+    ? 'text-ormi-green-500'
+    : 'text-orange-500';
+  const mainShadowClass = isPetMode
+    ? 'shadow-ormi-green-500/30'
+    : 'shadow-orange-500/30';
+  const fillHeartClass = isPetMode ? 'fill-ormi-green-500' : 'fill-orange-500';
+  const textHeartClass = isPetMode ? 'text-ormi-green-500' : 'text-orange-500';
   const [direction, setDirection] = useState(0);
   const [showLikeOverlay, setShowLikeOverlay] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,18 +107,23 @@ export default function SwipeableCardList({
       }
 
       setDirection(dirValue);
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % items.length;
-        onIndexChange?.(next); // Notify parent
+      const nextIndex = (currentIndex + 1) % items.length;
+      setCurrentIndex(nextIndex);
+      onIndexChange?.(nextIndex); // Notify parent outside updater
 
-        // Infinite Scroll Trigger
-        if (items.length - next <= 3) {
-          onLoadMore?.();
-        }
-        return next;
-      });
+      // Infinite Scroll Trigger
+      if (items.length - nextIndex <= 3) {
+        onLoadMore?.();
+      }
     },
-    [items.length, currentCard, analytics, onIndexChange, onLoadMore]
+    [
+      items.length,
+      currentIndex,
+      currentCard,
+      analytics,
+      onIndexChange,
+      onLoadMore,
+    ]
   );
 
   const triggerLike = useCallback(async () => {
@@ -272,7 +293,7 @@ export default function SwipeableCardList({
 
   return (
     <div
-      className="w-full h-full flex flex-col justify-end relative pointer-events-none"
+      className="w-full h-full flex flex-col justify-end relative pointer-events-auto"
       onClick={handleContainerClick}
     >
       <AnimatePresence>
@@ -292,7 +313,7 @@ export default function SwipeableCardList({
             >
               <Heart
                 size={80}
-                className="fill-orange-500 text-orange-500 mb-4 drop-shadow-lg"
+                className={`${fillHeartClass} ${textHeartClass} mb-4 drop-shadow-lg`}
               />
               <span className="text-2xl font-bold drop-shadow-md">
                 찜 되었습니다!
@@ -319,10 +340,10 @@ export default function SwipeableCardList({
             className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto"
           >
             {/* Card Container */}
-            <div className="bg-white dark:bg-slate-900 rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
+            <div className="bg-white rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
               {/* Drag Handle */}
               <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
-                <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full" />
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
 
               {/* Scrollable Content Area */}
@@ -342,35 +363,37 @@ export default function SwipeableCardList({
                         e.currentTarget.src = fallbackImage;
                       }}
                     />
-                    <div className="absolute top-4 right-4 bg-orange-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                    <div
+                      className={`absolute top-4 right-4 ${mainColorClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg`}
+                    >
                       {Math.round(currentCard.score * 100)}% 매칭
                     </div>
                   </div>
                 </div>
                 {/* Title & Info */}
                 <div className="px-6 mb-4">
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 leading-tight mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
                     {currentCard.title}
                   </h3>
                   {distance && (
-                    <div className="text-sm text-orange-500 font-medium mb-1">
+                    <div
+                      className={`text-sm ${mainTextColorClass} font-medium mb-1`}
+                    >
                       📍 {distance}km
                     </div>
                   )}
-                  <p className="text-gray-500 dark:text-gray-400 text-sm">
-                    {currentCard.addr_1}
-                  </p>
+                  <p className="text-gray-500 text-sm">{currentCard.addr_1}</p>
                 </div>
                 {/* Review/Quote Box */}
                 {currentCard.reviews && currentCard.reviews.length > 0 && (
                   <div className="px-4 mb-6">
-                    <div className="bg-gray-50 dark:bg-slate-800 rounded-3xl p-6 relative">
+                    <div className="bg-gray-50 rounded-3xl p-6 relative">
                       {/* Quote Icon decorative */}
-                      <span className="absolute top-4 left-4 text-4xl text-gray-200 dark:text-gray-600 font-serif leading-none">
+                      <span className="absolute top-4 left-4 text-4xl text-gray-200 font-serif leading-none">
                         "
                       </span>
 
-                      <p className="text-gray-700 dark:text-gray-300 text-lg font-medium leading-relaxed relative z-10 pt-2 px-2 text-center break-keep">
+                      <p className="text-gray-700 text-lg font-medium leading-relaxed relative z-10 pt-2 px-2 text-center break-keep">
                         {currentCard.reviews[0].detail.length > 50
                           ? `"${currentCard.reviews[0].detail.slice(0, 50)}..."`
                           : `"${currentCard.reviews[0].detail}"`}
@@ -388,14 +411,14 @@ export default function SwipeableCardList({
               </div>
 
               {/* Bottom Fixed Buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 bg-linear-to-t from-white via-white to-transparent dark:from-slate-900 dark:via-slate-900 pt-16">
+              <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 bg-linear-to-t from-white via-white/80 to-transparent pt-16">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // prevent drag
                       onNavigate?.();
                     }}
-                    className="flex-1 h-14 bg-orange-500 hover:bg-orange-600 active:scale-95 transition-all rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-lg shadow-orange-500/30"
+                    className={`flex-1 h-14 ${mainColorClass} ${mainHoverClass} active:scale-95 transition-all rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-lg ${mainShadowClass}`}
                   >
                     <svg
                       width="20"
@@ -417,7 +440,7 @@ export default function SwipeableCardList({
                     <a
                       href={`tel:${currentCard.tel}`}
                       onClick={(e) => e.stopPropagation()}
-                      className="w-14 h-14 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-2xl flex items-center justify-center text-gray-700 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
+                      className="w-14 h-14 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-all shadow-sm"
                     >
                       <svg
                         width="24"
