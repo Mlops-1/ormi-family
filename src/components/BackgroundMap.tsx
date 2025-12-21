@@ -99,9 +99,14 @@ export default function BackgroundMap({
         height: '100%',
         zoom: 11,
         zoomControl: false,
-        scrollwheel: false,
-        draggable: false,
+        scrollwheel: true,
+        draggable: true,
       });
+
+      // Add diagnostic listeners
+      map.addListener('dragstart', () => console.log('📍 Map Drag Start'));
+      map.addListener('dragend', () => console.log('📍 Map Drag End'));
+      map.addListener('zoomend', () => console.log('🔍 Map Zoom End'));
 
       map.addListener('click', () => {
         if (ignoreMapClickRef.current) return;
@@ -117,12 +122,28 @@ export default function BackgroundMap({
     if (!mapInstance.current || !window.Tmapv2) return;
     const map = mapInstance.current;
 
-    if (isMapMode) {
-      if (typeof map.setScrollwheel === 'function') map.setScrollwheel(true);
-      if (typeof map.setDraggable === 'function') map.setDraggable(true);
+    console.log(
+      'Syncing Map Interaction Mode:',
+      isMapMode ? 'Interactive' : 'Static'
+    );
+
+    // Tmap v2 interaction update
+    // setDraggable/setScrollwheel might not exist in all versions, setOptions is safer.
+    const interactionOptions = {
+      draggable: isMapMode,
+      scrollwheel: isMapMode,
+    };
+
+    if (typeof map.setOptions === 'function') {
+      map.setOptions(interactionOptions);
     } else {
-      if (typeof map.setScrollwheel === 'function') map.setScrollwheel(false);
-      if (typeof map.setDraggable === 'function') map.setDraggable(false);
+      // Fallback to direct methods if setOptions fails or is missing
+      if (typeof map.setDraggable === 'function') {
+        map.setDraggable(isMapMode);
+      }
+      if (typeof map.setScrollwheel === 'function') {
+        map.setScrollwheel(isMapMode);
+      }
     }
   }, [isMapMode]);
 
@@ -142,6 +163,7 @@ export default function BackgroundMap({
           false,
           markerTheme
         ),
+        offset: new window.Tmapv2.Point(24, 48), // Bottom-center
       });
 
       const handleMarkerClick = () => {
@@ -213,6 +235,7 @@ export default function BackgroundMap({
           map: mapInstance.current!,
           iconHTML: createCurrentLocationMarker(mainColor),
           zIndex: 200,
+          offset: new window.Tmapv2.Point(12, 12), // Center
         });
       }
     }
@@ -280,8 +303,9 @@ export default function BackgroundMap({
           centerLocation.lon
         ),
         map: mapInstance.current!,
-        iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; transform: translate(-50%, -100%); pointer-events: none;"></div>`,
+        iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; pointer-events: none;"></div>`,
         zIndex: 300,
+        offset: new window.Tmapv2.Point(50, 95), // Align base of icon to location
       });
       referenceMarkerRef.current = marker;
 

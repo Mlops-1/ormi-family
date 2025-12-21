@@ -25,7 +25,10 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
     <div className={`relative z-50 ${className}`}>
       {/* Main Toggle Button */}
       <motion.button
-        onClick={() => setBarrierOpen(!isBarrierOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setBarrierOpen(!isBarrierOpen);
+        }}
         className={`w-9 h-9 md:w-10 md:h-10 rounded-full shadow-md flex items-center justify-center transition-colors duration-200 pointer-events-auto relative ${'bg-orange-500 hover:bg-orange-600 dark:bg-ormi-green-500 dark:hover:bg-ormi-green-600 text-white'}`}
         aria-label="장애인 편의시설 필터"
       >

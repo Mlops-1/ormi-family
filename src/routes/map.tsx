@@ -1,10 +1,10 @@
-import { SpotAPI } from '@/api/spot';
 import { fetchRoute } from '@/api/tmapRoute';
 import BackgroundMap from '@/components/BackgroundMap';
 import BarrierFreeFilter from '@/components/BarrierFreeFilter';
 import CategoryFilter from '@/components/CategoryFilter';
 import FavoritesBottomSheet from '@/components/FavoritesBottomSheet';
 import GeoLocation from '@/components/GeoLocation';
+import LoadingScreen from '@/components/LoadingScreen';
 import LocationManager from '@/components/LocationManager';
 import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
@@ -19,6 +19,7 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
+import { SPOT_QUERY } from '@/queries/spotQuery';
 import { INITIAL_CATEGORY_IDS, useFilterStore } from '@/store/filterStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
@@ -27,7 +28,7 @@ import type { RoutePoint } from '@/types/map';
 import type { AccessibilityType } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 export const Route = createFileRoute('/map')({
   component: MapPage,
@@ -82,98 +83,119 @@ function MapPageContent() {
     selectedBarrierIds,
     setSelectedCategoryIds,
     setSelectedBarrierIds,
+    closeAllMenus,
   } = useFilterStore();
 
-  const [isFetching, setIsFetching] = useState(false);
   const isDarkMode = mode === 'pet';
 
   // Remove Theme Detection useEffect as it's now derived from store
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
-  // Load Spots (Converted to work with Store)
-  const loadSpots = useCallback(
-    async (isReset = false) => {
-      if (!effectiveCoordinates || isFetching) return;
-
-      setIsFetching(true);
-      try {
-        const response = await SpotAPI.getRecommendedSpots({
-          user_id: TEMP_USER_ID,
-          mapx: effectiveCoordinates.lon,
-          mapy: effectiveCoordinates.lat,
-          filter_type:
-            selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
-        });
-
-        const validSpots = (response.data || []).filter((spot) => {
-          const invalidPrefix = 'https://blogthumb.pstatic.net/';
-          const isFirstInvalid =
-            spot.first_image && spot.first_image.startsWith(invalidPrefix);
-          const isSecondInvalid =
-            spot.second_image && spot.second_image.startsWith(invalidPrefix);
-          return !isFirstInvalid && !isSecondInvalid;
-        });
-
-        const newSpots = validSpots;
-
-        setAllSpots((prev) => {
-          if (isReset) return newSpots;
-          const existingIds = new Set(prev.map((s) => s.content_id));
-          const uniqueNew = newSpots.filter(
-            (s) => !existingIds.has(s.content_id)
-          );
-          if (uniqueNew.length === 0) return prev;
-
-          // Notification handled by store
-          if (!isReset) {
-            addNotification('새로운 추천 장소를 불러왔습니다.');
-          }
-
-          return [...prev, ...uniqueNew];
-        });
-      } catch (error) {
-        console.error('Failed to load spots', error);
-      } finally {
-        setIsFetching(false);
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Use TanStack Query for Spots
+  const spotRequest = useMemo(
+    () => ({
+      user_id: TEMP_USER_ID,
+      mapx: effectiveCoordinates?.lon || 0,
+      mapy: effectiveCoordinates?.lat || 0,
+      filter_type: selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
+    }),
     [effectiveCoordinates, selectedCategoryIds]
   );
 
+  const {
+    data: recommendedSpots,
+    isFetching: isQueryFetching,
+    isLoading: isQueryLoading,
+  } = SPOT_QUERY.useGetRecommendedSpots(spotRequest);
+
+  // Sync Query Data to Store
   useEffect(() => {
-    loadSpots(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveCoordinates, selectedCategoryIds]);
+    if (recommendedSpots) {
+      const validSpots = recommendedSpots.filter((spot) => {
+        const invalidPrefix = 'https://blogthumb.pstatic.net/';
+        const isFirstInvalid =
+          spot.first_image && spot.first_image.startsWith(invalidPrefix);
+        const isSecondInvalid =
+          spot.second_image && spot.second_image.startsWith(invalidPrefix);
+        return !isFirstInvalid && !isSecondInvalid;
+      });
+      setAllSpots(validSpots);
+    }
+  }, [recommendedSpots, setAllSpots]);
+
+  // Close menus when switching from map mode to card mode
+  useEffect(() => {
+    if (!isMapMode) {
+      closeAllMenus();
+    }
+  }, [isMapMode, closeAllMenus]);
+
+  const isFetching = isQueryFetching || isQueryLoading;
+
+  const handleAutoFixFilters = useCallback(() => {
+    if (selectedBarrierIds.length === 0 || allSpots.length === 0) return;
+
+    // Calculate ratings for all spots based on current barrier filters
+    const ratedSpots = allSpots.map((spot) => {
+      const matchedFilters = selectedBarrierIds.filter((f) => {
+        const val = spot[f as keyof typeof spot];
+        return typeof val === 'string' && val.trim() !== '';
+      });
+      return { spot, matchedFilters };
+    });
+
+    // Sort to find the best possible match
+    ratedSpots.sort(
+      (a, b) => b.matchedFilters.length - a.matchedFilters.length
+    );
+    const bestMatch = ratedSpots[0];
+
+    if (
+      bestMatch &&
+      bestMatch.matchedFilters.length < selectedBarrierIds.length
+    ) {
+      // Set filters to only those satisfied by the best match
+      setSelectedBarrierIds(bestMatch.matchedFilters);
+      addNotification('일부 필터를 조정하여 장소를 찾았습니다.');
+    }
+  }, [allSpots, selectedBarrierIds, setSelectedBarrierIds, addNotification]);
 
   // Client-side Accessibility Filter logic
   const { displaySpots, isFallback } = useMemo(() => {
-    // allSpots comes from store now
     if (!allSpots) return { displaySpots: [], isFallback: false };
 
-    let filtered = allSpots;
-    if (selectedBarrierIds.length > 0) {
-      filtered = allSpots.filter((spot) => {
-        // Change from .some (OR) to .every (AND) logic
-        return selectedBarrierIds.every((filter: AccessibilityType) => {
-          const val = spot[filter];
-          return val && val.trim() !== '';
-        });
+    // Strict AND match
+    const filtered = allSpots.filter((spot) => {
+      return selectedBarrierIds.every((filter: AccessibilityType) => {
+        const val = spot[filter];
+        return val && val.trim() !== '';
       });
+    });
+
+    // If matches found, return them
+    if (filtered.length > 0) {
+      return { displaySpots: filtered, isFallback: false };
     }
 
-    const fallback =
-      filtered.length === 0 &&
-      selectedBarrierIds.length > 0 &&
-      allSpots.length > 0;
+    // If no matches but filters were active, trigger fallback state
+    // We only trigger if allSpots has items (meaning category filter itself returned something)
+    if (selectedBarrierIds.length > 0 && allSpots.length > 0) {
+      return {
+        displaySpots: [], // Hide markers/cards when nothing exactly matches
+        isFallback: true,
+      };
+    }
 
-    return {
-      // Strictly strictly matching markers only
-      displaySpots: filtered,
-      isFallback: fallback,
-    };
+    return { displaySpots: [], isFallback: false };
   }, [allSpots, selectedBarrierIds]);
+
+  // Effect to handle automatic map mode switch on fallback
+  useEffect(() => {
+    if (isFallback && !isMapMode) {
+      setMapMode(true);
+    }
+  }, [isFallback, isMapMode, setMapMode]);
 
   const handleLocationChange = (coords: Coordinates, address?: string) => {
     setManualLocation(coords);
@@ -339,7 +361,8 @@ function MapPageContent() {
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
 
   return (
-    <div className="relative w-full h-dvh overflow-hidden bg-gray-100 dark:bg-gray-900">
+    <div className="relative w-full h-dvh overflow-hidden bg-white font-jeju">
+      {isFetching && <LoadingScreen />}
       <BackgroundMap
         spots={displaySpots || []}
         currentSpotIndex={focusedSpotIndex}
@@ -374,12 +397,22 @@ function MapPageContent() {
             </div>
           )}
           {/* Fallback Message */}
-          {isFallback && !isMapMode && (
-            <div className="absolute top-44 left-0 right-0 z-40 px-4 animate-fade-in pointer-events-none">
-              <div className="bg-red-500/90 text-white px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm text-center">
-                <p className="font-bold">조건에 맞는 관광지가 없습니다.</p>
-                <p className="text-sm opacity-90">대신 이 곳들은 어떠세요?</p>
-              </div>
+          {isFallback && (
+            <div className="absolute top-44 left-0 right-0 z-40 px-6 animate-fade-in flex justify-center pointer-events-none">
+              <button
+                onClick={handleAutoFixFilters}
+                className={`pointer-events-auto flex flex-col items-center justify-center p-4 rounded-2xl shadow-xl border border-white/20 text-center transition-all active:scale-95 group overflow-hidden relative ${
+                  isDarkMode ? 'bg-ormi-green-500' : 'bg-orange-500'
+                }`}
+              >
+                <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <p className="text-sm font-bold text-white mb-1 drop-shadow-sm">
+                  조건에 맞는 관광지가 없습니다.
+                </p>
+                <p className="text-[13px] text-white/90 leading-snug font-medium">
+                  일부 조건을 만족하는 다른 관광지를 둘러보시겠어요?
+                </p>
+              </button>
             </div>
           )}
           {/* Floating Top Navigation */}
@@ -391,7 +424,10 @@ function MapPageContent() {
             }`}
           >
             <div className="pointer-events-auto flex-1 min-w-0 w-full mx-auto z-40">
-              <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative">
+              <div
+                className="flex items-center gap-1 bg-white/95 backdrop-blur-md rounded-full px-2 py-2 shadow-xl border border-gray-100 w-full relative"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="pointer-events-auto shrink-0 z-50 transition-all duration-300 w-auto opacity-100">
                   <CategoryFilter />
                 </div>
@@ -522,6 +558,9 @@ function MapPageContent() {
           />
           <div
             className={`flex-1 flex flex-col justify-end min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
+            onClick={() => {
+              if (!isMapMode) setMapMode(true);
+            }}
           >
             <AnimatePresence mode="wait">
               {!isMapMode && (
@@ -536,10 +575,10 @@ function MapPageContent() {
                     scale: 0.9,
                     transition: { duration: 0.4, ease: 'easeIn' },
                   }}
-                  className="w-full h-full md:w-[380px] md:h-[calc(100vh-2rem)] md:fixed md:left-4 md:top-4 md:z-30 md:rounded-3xl md:overflow-hidden flex flex-col relative z-20 pointer-events-none"
+                  className="w-full h-full md:w-[380px] md:absolute md:left-0 md:top-0 md:bottom-0 md:z-30 flex flex-col relative z-20 pointer-events-auto"
                 >
                   {displaySpots.length === 0 && !isFetching ? (
-                    <div className="mt-auto mx-4 text-jeju-light-text-disabled dark:text-jeju-dark-text-disabled p-8 text-center bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-3xl shadow-sm border border-jeju-light-divider dark:border-jeju-dark-divider">
+                    <div className="mt-auto mx-4 text-jeju-light-text-disabled p-8 text-center bg-white/90 backdrop-blur rounded-3xl shadow-sm border border-jeju-light-divider">
                       표시할 장소가 없습니다.
                     </div>
                   ) : (
@@ -551,7 +590,7 @@ function MapPageContent() {
                       onIndexChange={(index) => setFocusedSpotIndex(index)}
                       onToggleMapMode={() => setMapMode(true)}
                       onLoadMore={() => {
-                        if (!isFetching) loadSpots(false);
+                        /* Pagination not supported by backend recommendation API yet */
                       }}
                       selectedIndex={
                         focusedSpotIndex === -1 ? 0 : focusedSpotIndex

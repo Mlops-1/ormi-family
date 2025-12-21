@@ -1,8 +1,8 @@
 import useWeather from '@/hooks/useWeather';
+import { useFilterStore } from '@/store/filterStore';
 import type { Coordinates } from '@/types/geo';
 import { AnimatePresence, motion } from 'framer-motion'; // Using Framer Motion for consistency
 import { ChevronDown, Sun, Umbrella } from 'lucide-react';
-import { useState } from 'react';
 
 interface Props {
   coordinates: Coordinates;
@@ -10,7 +10,7 @@ interface Props {
 
 export default function WeatherWidget({ coordinates }: Props) {
   const { current, forecast, loading, error } = useWeather(coordinates);
-  const [isOpen, setIsOpen] = useState(false);
+  const { isWeatherOpen: isOpen, setWeatherOpen: setIsOpen } = useFilterStore();
 
   // Helper to format time (e.g., 15:00)
   const formatTime = (dt: number) => {
@@ -18,7 +18,10 @@ export default function WeatherWidget({ coordinates }: Props) {
     return `${date.getHours().toString().padStart(2, '0')}시`;
   };
 
-  const toggleOpen = () => setIsOpen(!isOpen);
+  const toggleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
 
   if (loading) {
     return (

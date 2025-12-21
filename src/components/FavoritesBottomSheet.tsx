@@ -91,7 +91,7 @@ export default function FavoritesBottomSheet({
             // Curtain Handle Style - Enhanced Tab with Chevron
             className="w-48 h-6 bg-orange-500 dark:bg-ormi-green-600 rounded-t-2xl shadow-[0_-2px_10px_rgba(0,0,0,0.1)] flex items-center justify-center cursor-pointer pointer-events-auto active:opacity-90 border-t border-white/20"
           >
-            <ChevronUp className="text-white w-5 h-5 animate-pulse" />
+            <ChevronUp className="text-white w-5 h-5" />
           </motion.div>
         </motion.div>
       )}
@@ -111,11 +111,11 @@ export default function FavoritesBottomSheet({
             onDragEnd={(_, info) => {
               if (info.offset.y > 150) setIsOpen(false);
             }}
-            className="absolute inset-0 z-[100] bg-white dark:bg-slate-900 flex flex-col pointer-events-auto"
+            className="absolute inset-0 z-100 bg-white dark:bg-slate-900 flex flex-col pointer-events-auto"
           >
             {/* Header / Drag Handle */}
             <div
-              className="w-full h-16 flex items-center justify-between px-4 shrink-0 bg-orange-500 dark:bg-ormi-green-600 z-[110] text-white shadow-md relative"
+              className="w-full h-16 flex items-center justify-between px-4 shrink-0 bg-orange-500 dark:bg-ormi-green-600 z-110 text-white shadow-md relative"
               onPointerDown={(e) => controls.start(e)}
             >
               {/* Decorative "Curtain Top" Curve effect could go here if needed, but sticking to clean header explicitly requested as main color */}

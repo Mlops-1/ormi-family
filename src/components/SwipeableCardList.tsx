@@ -337,7 +337,7 @@ export default function SwipeableCardList({
             dragElastic={1}
             onDragEnd={handleDragEnd}
             style={{ x }}
-            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto"
+            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto touch-none"
           >
             {/* Card Container */}
             <div className="bg-white rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
@@ -352,7 +352,7 @@ export default function SwipeableCardList({
                 {/* pb-24 for absolute buttons space */}
                 {/* Image Section */}
                 <div className="px-4 pt-2 pb-4">
-                  <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[32px] shadow-sm">
+                  <div className="relative aspect-4/3 w-full overflow-hidden rounded-[32px] shadow-sm">
                     <img
                       src={currentCard.first_image || fallbackImage}
                       alt={currentCard.title}

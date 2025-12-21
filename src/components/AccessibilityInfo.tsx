@@ -33,9 +33,6 @@ export default function AccessibilityInfo({ spot }: Props) {
   const mainTextColorClass = isPetMode
     ? 'text-ormi-green-500'
     : 'text-orange-500';
-  const mainTextSubClass = isPetMode
-    ? 'text-ormi-green-400'
-    : 'text-orange-400';
   const mainTooltipTextColor = isPetMode
     ? 'text-ormi-green-400'
     : 'text-orange-400';

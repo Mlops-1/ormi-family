@@ -1,13 +1,14 @@
+import { useFilterStore } from '@/store/filterStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MapPin, Trash2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 
 // Simple useClickOutside to close the widget when clicking outside
 function useClickOutside(
-  ref: React.RefObject<HTMLElement>,
+  ref: React.RefObject<HTMLElement | null>,
   handler: () => void
 ) {
   React.useEffect(() => {
@@ -45,7 +46,8 @@ export default function LocationManager({
   currentLocation,
   onSelectCurrentLocation,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(false);
+  const { isLocationOpen: isOpen, setLocationOpen: setIsOpen } =
+    useFilterStore();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -84,7 +86,10 @@ export default function LocationManager({
   return (
     <div className="relative shrink-0" ref={dropdownRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         className={`${mainColorClass} ${hoverColorClass} w-10 h-10 rounded-full flex items-center justify-center shadow-md transition-colors`}
         aria-label="기준 위치 설정"
       >
@@ -98,13 +103,13 @@ export default function LocationManager({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className={`absolute top-12 right-0 w-64 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border ${borderColorClass} overflow-hidden z-50 flex flex-col`}
+            className={`absolute top-12 right-0 w-64 bg-white rounded-2xl shadow-xl border ${borderColorClass} overflow-hidden z-50 flex flex-col`}
           >
-            <div className="p-3 border-b border-gray-100 dark:border-slate-700 font-bold text-gray-800 dark:text-gray-100 flex justify-between items-center">
+            <div className="p-3 border-b border-gray-100 font-bold text-gray-800 flex justify-between items-center">
               <span>기준 위치 설정</span>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                className="text-gray-400 hover:text-gray-600"
               >
                 <X size={18} />
               </button>
@@ -117,22 +122,20 @@ export default function LocationManager({
                   onClick={onSelectCurrentLocation}
                   className={`w-full flex items-center gap-2 p-2 rounded-xl text-left transition-colors ${
                     isCurrentActive
-                      ? 'bg-gray-100 dark:bg-slate-700 font-bold'
-                      : 'hover:bg-gray-50 dark:hover:bg-slate-700'
+                      ? 'bg-gray-100 font-bold'
+                      : 'hover:bg-gray-50'
                   }`}
                 >
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCurrentActive ? mainColorClass : 'bg-gray-200 dark:bg-slate-600'}`}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${isCurrentActive ? mainColorClass : 'bg-gray-200'}`}
                   >
                     <MapPin size={14} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm text-gray-900 dark:text-gray-100 truncate">
+                    <div className="text-sm text-gray-900 truncate">
                       현재 위치
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      GPS 기반
-                    </div>
+                    <div className="text-xs text-gray-500">GPS 기반</div>
                   </div>
                 </button>
               ) : (
@@ -141,7 +144,7 @@ export default function LocationManager({
                 </div>
               )}
 
-              <div className="h-px bg-gray-100 dark:bg-slate-700 my-1" />
+              <div className="h-px bg-gray-100 my-1" />
 
               {/* Saved Locations */}
               {savedLocations.length === 0 ? (
@@ -163,8 +166,8 @@ export default function LocationManager({
                       key={loc.id}
                       className={`group w-full flex items-center gap-2 p-2 rounded-xl text-left transition-colors ${
                         active
-                          ? 'bg-gray-100 dark:bg-slate-700 ring-1 ring-inset ring-gray-200 dark:ring-slate-600'
-                          : 'hover:bg-gray-50 dark:hover:bg-slate-700'
+                          ? 'bg-gray-100 ring-1 ring-inset ring-gray-200'
+                          : 'hover:bg-gray-50'
                       }`}
                     >
                       <button
@@ -172,7 +175,7 @@ export default function LocationManager({
                         onClick={() => handleLocationClick(loc)}
                       >
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${active ? mainColorClass : 'bg-orange-100 dark:bg-slate-600 text-orange-500 dark:text-slate-300'}`}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${active ? mainColorClass : 'bg-orange-100 text-orange-500'}`}
                         >
                           <span
                             className={`text-xs font-bold ${active ? 'text-white' : textColorClass}`}
@@ -182,7 +185,7 @@ export default function LocationManager({
                         </div>
                         <div className="flex-1 min-w-0">
                           <div
-                            className={`text-sm truncate ${active ? 'font-bold' : ''} text-gray-900 dark:text-gray-100`}
+                            className={`text-sm truncate ${active ? 'font-bold' : ''} text-gray-900`}
                           >
                             {loc.name}
                           </div>
@@ -194,7 +197,7 @@ export default function LocationManager({
                           e.stopPropagation();
                           removeSavedLocation(loc.id);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
                         title="삭제"
                       >
                         <Trash2 size={14} />
@@ -205,7 +208,7 @@ export default function LocationManager({
               )}
             </div>
 
-            <div className="p-2 bg-gray-50 dark:bg-slate-900 text-[10px] text-gray-400 text-center border-t border-gray-100 dark:border-slate-700">
+            <div className="p-2 bg-gray-50 text-[10px] text-gray-400 text-center border-t border-gray-100">
               최대 5개까지 저장됩니다.
             </div>
           </motion.div>
