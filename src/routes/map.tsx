@@ -5,6 +5,7 @@ import BottomNavigation, {
   type RouteAction,
 } from '@/components/BottomNavigation';
 import CategoryFilter from '@/components/CategoryFilter';
+import ChatbotPanel from '@/components/ChatbotPanel';
 import GeoLocation from '@/components/GeoLocation';
 import LoadingScreen from '@/components/LoadingScreen';
 import ModeToggle from '@/components/ModeToggle';
@@ -20,13 +21,18 @@ import useGeoLocation from '@/hooks/useGeoLocation';
 import { SPOT_QUERY } from '@/queries/spotQuery';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useFilterStore } from '@/store/filterStore';
+import type { SavedLocation } from '@/store/mapStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
+import type { TmapReverseGeocodeResponse } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
 import type { RoutePoint } from '@/types/map';
-import type { AccessibilityType, FavoriteSpot } from '@/types/spot';
+import type { AccessibilityType, FavoriteSpot, SpotCard } from '@/types/spot';
+import { useQuery } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import axios from 'axios';
 import { AnimatePresence, motion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const Route = createFileRoute('/map')({
@@ -86,10 +92,17 @@ function MapPageContent() {
   } = useFilterStore();
 
   const isDarkMode = mode === 'pet';
+  const mainColorClass = isDarkMode ? 'bg-ormi-green-500' : 'bg-orange-500';
 
   // --- Favorites Mode State ---
   const { isFavoritesMode, setFavoritesMode } = useBottomFilterStore();
   const [favorites, setFavorites] = useState<FavoriteSpot[]>([]);
+
+  // --- Popup Interaction State ---
+  const [popupType, setPopupType] = useState<'set-ref' | null>(null);
+  const [popupTargetCoords, setPopupTargetCoords] =
+    useState<Coordinates | null>(null);
+  const [showChatbot, setShowChatbot] = useState(false);
 
   // Fetch favorites when entering favorites mode
   useEffect(() => {
@@ -108,6 +121,44 @@ function MapPageContent() {
   }, [isFavoritesMode]);
 
   const effectiveCoordinates = manualLocation || location.coordinates;
+
+  // Fetch Address for Reference Location (Used for Label)
+  const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY;
+  const { data: centerAddress } = useQuery({
+    queryKey: [
+      'tmapAddress',
+      effectiveCoordinates?.lat,
+      effectiveCoordinates?.lon,
+    ],
+    queryFn: async () => {
+      if (!APP_KEY || !effectiveCoordinates?.lat || !effectiveCoordinates?.lon)
+        return '';
+      try {
+        const res = await axios.get<TmapReverseGeocodeResponse>(
+          `https://apis.openapi.sk.com/tmap/geo/reversegeocoding?version=1&lat=${effectiveCoordinates.lat}&lon=${effectiveCoordinates.lon}&addressType=A02&appKey=${APP_KEY}`
+        );
+        const info = res.data.addressInfo;
+        if (info) {
+          // Format similar to GeoLocation
+          const city = (info.city_do || '')
+            .replace(/제주특별자치도\s*/g, '')
+            .trim();
+          const gu = info.gu_gun || '';
+          const dong = info.legalDong || info.adminDong || '';
+          const parts = [];
+          if (city) parts.push(city);
+          if (gu) parts.push(gu);
+          if (dong) parts.push(dong);
+          return parts.length > 0 ? parts.join(' ') : '주소 없음';
+        }
+        return '';
+      } catch (e) {
+        return '';
+      }
+    },
+    enabled: !!APP_KEY && !!effectiveCoordinates,
+    staleTime: 1000 * 60 * 5,
+  });
 
   // Use TanStack Query for Spots
   const spotRequest = useMemo(
@@ -154,9 +205,9 @@ function MapPageContent() {
     if (selectedBarrierIds.length === 0 || allSpots.length === 0) return;
 
     // Calculate ratings for all spots based on current barrier filters
-    const ratedSpots = allSpots.map((spot: any) => {
+    const ratedSpots = allSpots.map((spot: SpotCard) => {
       const matchedFilters = selectedBarrierIds.filter((f) => {
-        const val = spot[f as keyof typeof spot];
+        const val = spot[f as keyof SpotCard];
         return typeof val === 'string' && val.trim() !== '';
       });
       return { spot, matchedFilters };
@@ -187,10 +238,10 @@ function MapPageContent() {
     if (!allSpots) return { displaySpots: [], isFallback: false };
 
     // Strict AND match
-    const filtered = allSpots.filter((spot: any) => {
+    const filtered = allSpots.filter((spot: SpotCard) => {
       return selectedBarrierIds.every((filter: AccessibilityType) => {
         const val = spot[filter];
-        return val && val.trim() !== '';
+        return typeof val === 'string' && val.trim() !== '';
       });
     });
 
@@ -391,23 +442,92 @@ function MapPageContent() {
   return (
     <div className="relative w-full h-dvh overflow-hidden bg-white font-jeju">
       {isFetching && <LoadingScreen />}
-      <BackgroundMap
-        spots={displaySpots || []}
-        currentSpotIndex={focusedSpotIndex}
-        isMapMode={isMapMode}
-        onMapInteraction={() => {
-          if (!isMapMode) setMapMode(true);
-        }}
-        onMarkerClick={handleMarkerClick}
-        userLocation={location.coordinates}
-        centerLocation={effectiveCoordinates}
-        savedLocations={savedLocations}
-        routeStart={startPoint?.coordinates}
-        routeEnd={endPoint?.coordinates}
-        routeWaypoints={wayPoints.map((w) => w.coordinates)}
-        routePath={routePath || undefined}
-        markerTheme={isDarkMode ? 'green' : 'orange'}
-      />
+      <div className="absolute inset-0 z-0">
+        <BackgroundMap
+          spots={displaySpots || []}
+          currentSpotIndex={focusedSpotIndex}
+          isMapMode={isMapMode}
+          onMapInteraction={() => {
+            if (!isMapMode) setMapMode(true);
+          }}
+          onMarkerClick={handleMarkerClick}
+          userLocation={location.coordinates}
+          centerLocation={effectiveCoordinates}
+          savedLocations={savedLocations}
+          routeStart={startPoint?.coordinates}
+          routeEnd={endPoint?.coordinates}
+          routeWaypoints={wayPoints.map((w) => w.coordinates)}
+          routePath={routePath || undefined}
+          markerTheme={isDarkMode ? 'green' : 'orange'}
+          onReferenceMarkerClick={useCallback(() => setShowChatbot(true), [])}
+          onOtherMarkerClick={useCallback((coords: Coordinates) => {
+            setPopupTargetCoords(coords);
+            setPopupType('set-ref');
+          }, [])}
+          onReferenceMarkerDragEnd={useCallback(
+            (lat: number, lon: number) => {
+              setManualLocation({ lat, lon });
+              addNotification('기준 위치를 이동했습니다.');
+            },
+            [setManualLocation, addNotification]
+          )}
+        />
+      </div>
+
+      {/* Popups Overlay Layer */}
+      <AnimatePresence>
+        {popupType && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-60 flex items-center justify-center pointer-events-none"
+          >
+            {/* Set Reference Popup */}
+            {popupType === 'set-ref' && popupTargetCoords && (
+              <motion.div
+                initial={{ scale: 0.8, y: 10, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.8, y: 10, opacity: 0 }}
+                className="bg-white rounded-3xl shadow-2xl p-6 w-80 text-center pointer-events-auto border border-gray-100 flex flex-col items-center gap-3 relative"
+              >
+                <button
+                  onClick={() => setPopupType(null)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={20} />
+                </button>
+                <h3 className="font-bold text-lg text-gray-800 mt-2">
+                  기준 위치 설정
+                </h3>
+                <p className="text-gray-500 text-sm mb-4">
+                  이 위치를 새로운 기준 위치로
+                  <br />
+                  설정하시겠습니까?
+                </p>
+                <div className="flex gap-2 w-full">
+                  <button
+                    onClick={() => setPopupType(null)}
+                    className="flex-1 py-3 rounded-xl font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
+                  >
+                    아니오
+                  </button>
+                  <button
+                    onClick={() => {
+                      setManualLocation(popupTargetCoords);
+                      setPopupType(null);
+                      addNotification('기준 위치가 변경되었습니다.');
+                    }}
+                    className={`flex-1 py-3 rounded-xl font-bold text-white shadow-md active:scale-95 transition-all ${mainColorClass}`}
+                  >
+                    예
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="absolute inset-0 w-full h-full pointer-events-none flex justify-center">
         <div className="w-full h-full flex flex-col relative">
@@ -533,7 +653,7 @@ function MapPageContent() {
           <BottomNavigation
             activeSpot={activeSpot}
             onSpotClose={() => setFocusedSpotIndex(-1)}
-            onViewSpotDetails={(spot: any) => {
+            onViewSpotDetails={(_spot: SpotCard) => {
               setMapMode(false); // To Card View
             }}
             onRouteSelect={handleRouteOptionSelect}
@@ -551,7 +671,9 @@ function MapPageContent() {
             hasStart={!!startPoint}
             hasEnd={!!endPoint}
             onSelectCurrentLocation={() => setManualLocation(null)}
-            onLocationSelect={(loc: any) => setManualLocation(loc.coordinates)}
+            onLocationSelect={(loc: SavedLocation) =>
+              setManualLocation(loc.coordinates)
+            }
           />
 
           <OnboardingOverlay
@@ -560,12 +682,7 @@ function MapPageContent() {
           />
 
           {/* Card List (Overlay) when NOT in Map Mode */}
-          <div
-            className={`flex-1 flex flex-col justify-end min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
-            onClick={() => {
-              if (!isMapMode) setMapMode(true);
-            }}
-          >
+          <div className="flex-1 flex flex-col justify-end min-h-0 pointer-events-none">
             <AnimatePresence mode="wait">
               {!isMapMode && (
                 <motion.div
@@ -618,6 +735,23 @@ function MapPageContent() {
           </div>
         </div>
       </div>
+
+      {/* Chatbot Panel */}
+      <AnimatePresence>
+        {showChatbot && (
+          <ChatbotPanel
+            userLocation={effectiveCoordinates}
+            onClose={() => setShowChatbot(false)}
+            onRecommendationReceived={(result) => {
+              console.log('AI Recommendation:', result);
+              addNotification(
+                `${result.spots?.length || 0}개의 추천 장소를 찾았습니다!`
+              );
+              // TODO: Display recommended spots on map
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

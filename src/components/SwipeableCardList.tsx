@@ -5,7 +5,8 @@ import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
-import type { SpotCard } from '@/types/spot';
+import type { FavoriteSpot, SpotCard } from '@/types/spot';
+import { formatTag, parseTags } from '@/utils/tagUtils';
 import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
 import { Heart } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -65,6 +66,10 @@ export default function SwipeableCardList({
   }
 
   const currentCard = items[currentIndex];
+
+  // Parse tags if this is a favorite card
+  const tags = parseTags((currentCard as FavoriteSpot)?.tag);
+  const hasScore = currentCard?.score !== undefined && currentCard?.score > 0;
 
   // Debug logging
   useEffect(() => {
@@ -178,24 +183,36 @@ export default function SwipeableCardList({
       const { x, y } = info.offset;
       const swipeDistance = Math.sqrt(x * x + y * y);
 
-      const HORIZONTAL_THRESHOLD = 80;
-      const PULL_DOWN_THRESHOLD = 100;
+      const HORIZONTAL_THRESHOLD = 100;
+      const VERTICAL_THRESHOLD = 120;
 
-      // Logic Swap Reverted:
-      // Right Swipe (x > 80): Like
-      // Left Swipe (x < -80): Skip
-      // Down (> 100): Map Mode
+      // Determine dominant direction
+      const absX = Math.abs(x);
+      const absY = Math.abs(y);
 
-      if (y > PULL_DOWN_THRESHOLD && Math.abs(x) < HORIZONTAL_THRESHOLD) {
-        onToggleMapMode?.();
-      } else if (x > HORIZONTAL_THRESHOLD) {
-        // Right Swipe -> Like
-        triggerLike();
-      } else if (x < -HORIZONTAL_THRESHOLD) {
-        // Left Swipe -> Skip
-        isProcessingRef.current = true; // Lock for skip too
-        setIsProcessing(true);
-        handleNext(true, 'left', swipeDistance, -1);
+      // Only allow 3 specific directions:
+      // 1. Left (x < -100 and absX > absY): Skip
+      // 2. Right (x > 100 and absX > absY): Like
+      // 3. Down (y > 120 and absY > absX): Map Mode
+
+      if (absY > absX) {
+        // Vertical dominant
+        if (y > VERTICAL_THRESHOLD) {
+          // Down swipe -> Map Mode
+          onToggleMapMode?.();
+        }
+        // Ignore up swipes (y < 0)
+      } else {
+        // Horizontal dominant
+        if (x > HORIZONTAL_THRESHOLD) {
+          // Right Swipe -> Like
+          triggerLike();
+        } else if (x < -HORIZONTAL_THRESHOLD) {
+          // Left Swipe -> Skip
+          isProcessingRef.current = true;
+          setIsProcessing(true);
+          handleNext(true, 'left', swipeDistance, -1);
+        }
       }
     },
     [isProcessing, handleNext, triggerLike, onToggleMapMode]
@@ -337,12 +354,18 @@ export default function SwipeableCardList({
             dragElastic={1}
             onDragEnd={handleDragEnd}
             style={{ x }}
-            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto touch-none"
+            className="absolute w-full px-0 cursor-grab active:cursor-grabbing h-full max-h-[700px] z-10 font-jeju bottom-0 pointer-events-auto touch-none select-none"
           >
             {/* Card Container */}
             <div className="bg-white rounded-t-[40px] rounded-b-none shadow-2xl border-t border-x border-white/20 h-full flex flex-col relative overflow-hidden">
               {/* Drag Handle */}
-              <div className="w-full flex justify-center pt-3 pb-1 shrink-0">
+              <div
+                className="w-full flex justify-center pt-3 pb-1 shrink-0 cursor-pointer active:bg-gray-50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleMapMode?.();
+                }}
+              >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
               </div>
 
@@ -363,11 +386,13 @@ export default function SwipeableCardList({
                         e.currentTarget.src = fallbackImage;
                       }}
                     />
-                    <div
-                      className={`absolute top-4 right-4 ${mainColorClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg`}
-                    >
-                      {Math.round(currentCard.score * 100)}% 매칭
-                    </div>
+                    {hasScore && (
+                      <div
+                        className={`absolute top-4 right-4 ${mainColorClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg`}
+                      >
+                        {Math.round(currentCard.score * 100)}% 매칭
+                      </div>
+                    )}
                   </div>
                 </div>
                 {/* Title & Info */}
@@ -382,7 +407,23 @@ export default function SwipeableCardList({
                       📍 {distance}km
                     </div>
                   )}
-                  <p className="text-gray-500 text-sm">{currentCard.addr_1}</p>
+                  <p className="text-gray-500 text-sm mb-3">
+                    {currentCard.addr_1}
+                  </p>
+
+                  {/* Tags */}
+                  {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className={`inline-block ${mainColorClass} text-white text-xs font-medium px-3 py-1 rounded-full`}
+                        >
+                          {formatTag(tag)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {/* Review/Quote Box */}
                 {currentCard.reviews && currentCard.reviews.length > 0 && (

@@ -16,7 +16,8 @@ export interface UserFormState {
 interface UserState {
   user: CognitoUser | null;
   profile: UserProfile | null;
-  mode: 'toddler' | 'pet';
+  userId: number | null;
+  mode: 'toddler' | 'pet'; // Frontend uses 'toddler', converted to 'baby' for API
 
   // Form State for User Profile Edit
   editForm: UserFormState;
@@ -24,6 +25,7 @@ interface UserState {
   // Actions
   setUser: (user: CognitoUser | null) => void;
   setProfile: (profile: UserProfile | null) => void;
+  setUserId: (userId: number | null) => void;
   setMode: (mode: 'toddler' | 'pet') => void;
   logout: () => void;
 
@@ -48,26 +50,23 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       user: null,
       profile: null,
+      userId: null,
       mode: 'toddler', // Default
       editForm: INITIAL_FORM_STATE,
 
       setUser: (user) => set({ user }),
       setProfile: (profile) => set({ profile }),
+      setUserId: (userId) => set({ userId }),
       setMode: (mode) => {
         set({ mode });
-
-        // Handle Side Effects
-        const root = window.document.documentElement;
-        if (mode === 'toddler') {
-          root.classList.remove('dark');
-          localStorage.setItem('theme', 'light');
-        } else {
-          root.classList.add('dark');
-          localStorage.setItem('theme', 'dark');
-        }
       },
       logout: () =>
-        set({ user: null, profile: null, editForm: INITIAL_FORM_STATE }),
+        set({
+          user: null,
+          profile: null,
+          userId: null,
+          editForm: INITIAL_FORM_STATE,
+        }),
 
       setEditForm: (updates) =>
         set((state) => ({
@@ -80,6 +79,7 @@ export const useUserStore = create<UserState>()(
       partialize: (state) => ({
         user: state.user,
         profile: state.profile,
+        userId: state.userId,
         mode: state.mode,
         // Do not persist editForm to avoid stale state on reload
       }),

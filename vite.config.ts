@@ -65,6 +65,10 @@ export default defineConfig({
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
+      '/user/update': {
+        target: 'http://13.209.98.82:8000',
+        changeOrigin: true,
+      },
       '/docs': {
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
@@ -79,6 +83,10 @@ export default defineConfig({
       },
       '/prod': {
         target: 'https://tmqr6uurv7.execute-api.ap-northeast-2.amazonaws.com',
+        changeOrigin: true,
+      },
+      '/bot/agent': {
+        target: 'https://shkzgaiq8b.execute-api.ap-northeast-2.amazonaws.com',
         changeOrigin: true,
       },
       '/favorites': {

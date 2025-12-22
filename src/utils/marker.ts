@@ -1,12 +1,19 @@
 export const createPinMarker = (
   color: string,
   isActive: boolean,
-  zIndex: number = 10
+  zIndex: number = 10,
+  label?: string
 ) => {
   const scale = isActive ? 1.2 : 1.0;
+  const labelHtml = label
+    ? `<div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); background: ${color}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: ${
+        zIndex + 1
+      };">${label}</div>`
+    : '';
 
   return `
     <div style="position: absolute; transform: translate(-50%, -100%); width: 24px; height: 30px; z-index: ${zIndex}; pointer-events: none;">
+      ${labelHtml}
       <svg width="24" height="30" viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg" style="transform: scale(${scale}); filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.3)); pointer-events: auto; cursor: pointer;">
         <path d="M12 0C5.37258 0 0 5.37258 0 12C0 20 12 30 12 30C12 30 24 20 24 12C24 5.37258 18.6274 0 12 0Z" fill="${color}"/>
         <circle cx="12" cy="12" r="4" fill="white"/>
@@ -18,7 +25,7 @@ export const createPinMarker = (
 export const createCurrentLocationMarker = (color: string) => {
   return `
     <div style="position: absolute; transform: translate(-50%, -50%); width: 40px; height: 40px; z-index: 200; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-      <div style="position: absolute; top: -20px; background: ${color}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">내 위치</div>
+      <div style="position: absolute; top: -14px; background: ${color}; color: white; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 300;">내 위치</div>
       <div style="width: 20px; height: 20px; background: white; border-radius: 50%; border: 3px solid ${color}; box-shadow: 0 0 15px ${color}, 0 0 5px ${color}; animation: pulse 2s infinite;"></div>
       <style>
         @keyframes pulse {

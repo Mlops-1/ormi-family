@@ -61,6 +61,7 @@ export interface SpotCard {
 
 export interface FavoriteSpot extends SpotCard {
   favorite_created_at: string; // ISO string
+  tag?: string; // JSON string array of tags
 }
 
 export interface Review {
