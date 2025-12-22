@@ -11,6 +11,7 @@ import type {
   Spot,
 } from '@/types/chatbot';
 import type { Coordinates } from '@/types/geo';
+import type { FavoriteSpot } from '@/types/spot';
 import {
   ArrowLeft,
   Bot,
@@ -66,6 +67,13 @@ const SCENARIOS: ScenarioOption[] = [
     emoji: '🚗',
     requiresFavorites: true,
   },
+  {
+    type: 'start_end',
+    title: '동선 최적화 추천',
+    description: '출발지와 도착지 사이 경유지',
+    emoji: '🛣️',
+    requiresEndSpot: true,
+  },
 ];
 
 interface Destination {
@@ -112,6 +120,8 @@ export default function ChatbotContent({
   const [recommendationResult, setRecommendationResult] =
     useState<RecommendResponse | null>(null);
   const [likedSpotIds, setLikedSpotIds] = useState<Set<string>>(new Set());
+  const [favoriteSpots, setFavoriteSpots] = useState<FavoriteSpot[]>([]);
+  const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
 
   // 전역 찜 목록 동기화
   const fetchFavorites = useCallback(async () => {
@@ -123,6 +133,7 @@ export default function ChatbotContent({
       if (resp.data) {
         const ids = new Set(resp.data.map((fav) => String(fav.content_id)));
         setLikedSpotIds(ids);
+        setFavoriteSpots(resp.data);
         console.log('[FAVORITE] Chatbot synced items:', ids.size);
       }
     } catch (err) {
@@ -156,10 +167,13 @@ export default function ChatbotContent({
     setError(null);
     setLogs([]);
     setRecommendationResult(null);
+    setRecommendationResult(null);
     setSelectedDestination(null); // Reset destination when selecting new scenario
+    setIsFavoritePickerOpen(false);
 
     // location_time: 위치 선택 화면으로 이동
-    if (scenario === 'location_time') {
+    // start_end: 위치 선택 화면으로 이동 (출발지 선택 후 목적지 선택)
+    if (scenario === 'location_time' || scenario === 'start_end') {
       setIsSelectingLocation(true);
       return;
     }
@@ -184,6 +198,24 @@ export default function ChatbotContent({
     }
   };
 
+  // 찜한 장소를 목적지로 선택했을 때
+  const handleFavoriteDestinationSelect = (spot: FavoriteSpot) => {
+    setIsFavoritePickerOpen(false);
+    if (effectiveUserLocation) {
+      executeScenario(
+        'start_end',
+        String(spot.content_id), // endSpotId 전달
+        {
+          lat: effectiveUserLocation.lat,
+          lon: effectiveUserLocation.lon,
+          name: manualLocation ? '기준위치' : '현재위치',
+        }
+      );
+    } else {
+      setError('출발지 정보를 가져올 수 없습니다.');
+    }
+  };
+
   // 위치 선택 핸들러 (location_time 시나리오용)
   const handleLocationSelect = (loc: {
     lat: number;
@@ -192,6 +224,21 @@ export default function ChatbotContent({
   }) => {
     setIsSelectingLocation(false);
     // 선택한 위치로 시나리오 실행
+    // start_end인 경우 목적지 선택 화면으로 이동
+    if (selectedScenario === 'start_end') {
+      setIsDestinationPickerOpen(true);
+      // 여기서 handleDestinationConfirm까지 상태를 유지해야 함.
+      // -> 목적지를 찜 목록에서 선택하도록 변경됨 (2024.12.23)
+      if (favoriteSpots.length === 0) {
+        setError('찜한 장소가 없습니다. 먼저 장소를 찜해주세요!');
+        setIsSelectingLocation(false);
+        setSelectedScenario(null);
+        return;
+      }
+      setIsFavoritePickerOpen(true);
+      return;
+    }
+
     executeScenario('location_time', undefined, loc);
   };
 
@@ -209,16 +256,31 @@ export default function ChatbotContent({
 
     // 목적지는 현재/기준 위치에서 출발한다고 가정
     if (effectiveUserLocation) {
-      executeScenario(
-        'destination_only',
-        undefined, // endSpotId 없음
-        {
-          lat: effectiveUserLocation.lat,
-          lon: effectiveUserLocation.lon,
-          name: manualLocation ? '기준위치' : '현재위치',
-        },
-        dest
-      );
+      // start_end 모드일 경우
+      if (selectedScenario === 'start_end') {
+        executeScenario(
+          'start_end',
+          undefined,
+          {
+            lat: effectiveUserLocation.lat,
+            lon: effectiveUserLocation.lon,
+            name: manualLocation ? '기준위치' : '현재위치',
+          },
+          dest
+        );
+      } else {
+        // destination_only 모드일 경우
+        executeScenario(
+          'destination_only',
+          undefined, // endSpotId 없음
+          {
+            lat: effectiveUserLocation.lat,
+            lon: effectiveUserLocation.lon,
+            name: manualLocation ? '기준위치' : '현재위치',
+          },
+          dest
+        );
+      }
     } else {
       setError('현재 위치를 가져올 수 없습니다.');
     }
@@ -327,13 +389,16 @@ export default function ChatbotContent({
     const scenarioOption = SCENARIOS.find((s) => s.type === scenario);
 
     if (scenarioOption?.requiresFavorites) {
-      if (!userId) {
-        setError('로그인이 필요한 기능입니다. (로그인 후 이용해주세요)');
-      }
+      // User ID is required, fallback to TEMP_USER_ID if not logged in (though logic suggests it's required)
       request.user_id = String(userId || TEMP_USER_ID);
 
       if (scenario === 'favorites_route') {
-        request.spot_ids = [];
+        const spotIds = Array.from(likedSpotIds);
+        if (spotIds.length === 0) {
+          setError('아직 찜한 장소가 없습니다. 먼저 장소를 찜해주세요!');
+          return;
+        }
+        request.spot_ids = spotIds;
       }
     }
 
@@ -396,6 +461,10 @@ export default function ChatbotContent({
       setIsDestinationPickerOpen(false);
       return;
     }
+    if (isFavoritePickerOpen) {
+      setIsFavoritePickerOpen(false);
+      return;
+    }
     if (recommendationResult) {
       setRecommendationResult(null);
       setLogs([]);
@@ -404,6 +473,7 @@ export default function ChatbotContent({
     }
     setSelectedScenario(null);
     setSelectedDestination(null);
+    setIsFavoritePickerOpen(false);
     setError(null);
     setLogs([]);
   };
@@ -435,15 +505,17 @@ export default function ChatbotContent({
                     !isDestinationPickerOpen
                   ? SCENARIOS.find((s) => s.type === selectedScenario)
                       ?.description
-                  : selectedScenario === 'location_time' && isSelectingLocation
-                    ? '어디를 기준으로 추천해드릴까요?'
+                  : (selectedScenario === 'location_time' ||
+                        selectedScenario === 'start_end') &&
+                      isSelectingLocation
+                    ? '어디서 출발하시나요?'
                     : selectedScenario === 'destination_only' &&
                         !isLoading &&
                         !selectedDestination &&
                         !isDestinationPickerOpen
                       ? '가고 싶은 목적지를 선택하세요'
-                      : isDestinationPickerOpen
-                        ? '목적지를 설정해주세요'
+                      : isFavoritePickerOpen
+                        ? '도착지로 설정할 찜 장소를 선택해주세요'
                         : isLoading
                           ? 'AI가 실시간으로 분석 중입니다...'
                           : '원하는 여행 스타일을 선택하세요'}
@@ -480,7 +552,9 @@ export default function ChatbotContent({
               </button>
             ))}
           </div>
-        ) : selectedScenario === 'location_time' && isSelectingLocation ? (
+        ) : (selectedScenario === 'location_time' ||
+            selectedScenario === 'start_end') &&
+          isSelectingLocation ? (
           // 2. 위치 선택 화면 (Chat Bubble Style Options)
           <div className="flex flex-col gap-4">
             {/* Bot Message */}
@@ -491,7 +565,9 @@ export default function ChatbotContent({
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none text-sm text-gray-800">
-                어떤 위치를 기준으로 추천해드릴까요?
+                {selectedScenario === 'start_end'
+                  ? '어디서 출발하시나요?'
+                  : '어떤 위치를 기준으로 추천해드릴까요?'}
               </div>
             </div>
 
@@ -533,8 +609,59 @@ export default function ChatbotContent({
               ))}
             </div>
           </div>
-        ) : isDestinationPickerOpen ? (
-          // 3. 목적지 선택 화면 (인라인 피커)
+        ) : isFavoritePickerOpen ? (
+          // 2.5 찜 목록 선택 (start_end 목적지용)
+          <div className="flex flex-col gap-4">
+            <div className="flex gap-3">
+              <div
+                className={`w-8 h-8 rounded-full ${mainBgColorClass} flex items-center justify-center shrink-0`}
+              >
+                <Bot className="w-4 h-4 text-white" />
+              </div>
+              <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none text-sm text-gray-800">
+                도착지로 설정할 장소를 선택해주세요.
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {favoriteSpots.map((spot) => (
+                <button
+                  key={spot.content_id}
+                  onClick={() => handleFavoriteDestinationSelect(spot)}
+                  className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-orange-300 hover:shadow-md transition-all text-left group"
+                >
+                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                    {spot.first_image ? (
+                      <img
+                        src={spot.first_image}
+                        alt={spot.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-300">
+                        <MapPin className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-gray-900 truncate">
+                      {spot.title}
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                      {spot.addr_1}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-orange-500" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : selectedScenario === 'destination_only' &&
+          !isLoading &&
+          !selectedDestination &&
+          !recommendationResult &&
+          isDestinationPickerOpen ? (
+          // 3. 목적지 선택 화면 (인라인 피커) - destination_only 전용
           <div className="h-full flex flex-col">
             <LocationPicker
               initialCoordinates={
