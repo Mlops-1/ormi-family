@@ -46,6 +46,8 @@ interface FilterStore {
 
 // Initial Barrier Options
 export const INITIAL_BARRIER_IDS: AccessibilityType[] = [
+  'yes_kids',
+  'yes_pet',
   'wheelchair',
   'stroller',
   'lactation_room',
@@ -58,10 +60,12 @@ export const INITIAL_BARRIER_IDS: AccessibilityType[] = [
 
 // Initial Category Options
 export const INITIAL_CATEGORY_IDS: SpotCategoryType[] = [
-  SpotCategory.TOURIST_SPOT,
-  SpotCategory.CAFE,
-  SpotCategory.RESTAURANT,
+  SpotCategory.TOUR_SPOT,
   SpotCategory.ACCOMMODATION,
+  SpotCategory.FOOD,
+  SpotCategory.CAFE,
+  SpotCategory.EVENT,
+  SpotCategory.SHOPPING,
 ];
 
 export const useFilterStore = create<FilterStore>()(
@@ -182,6 +186,7 @@ export const useFilterStore = create<FilterStore>()(
 
           if (mode === 'toddler') {
             barrierPriority = [
+              'yes_kids', // New Top priority
               'stroller',
               'lactation_room',
               'baby_spare_chair',
@@ -189,7 +194,10 @@ export const useFilterStore = create<FilterStore>()(
             ];
             initialSelectedBarriers = [...barrierPriority];
           } else {
-            barrierPriority = ['help_dog'];
+            barrierPriority = [
+              'yes_pet', // New Top priority
+              'help_dog',
+            ];
             initialSelectedBarriers = [...barrierPriority];
           }
 
@@ -199,7 +207,7 @@ export const useFilterStore = create<FilterStore>()(
           const newBarrierOrder = [...barrierPriority, ...restBarriers];
 
           set({
-            selectedCategoryIds: INITIAL_CATEGORY_IDS, // First time: All 4 categories
+            selectedCategoryIds: INITIAL_CATEGORY_IDS, // First time: All Categories
             selectedBarrierIds: initialSelectedBarriers,
             barrierOrderedIds: newBarrierOrder,
             themeFilters: updatedThemeFilters,

@@ -28,6 +28,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import ChatbotContent from './ChatbotContent';
 import CourseThumbnailMap from './CourseThumbnailMap';
 
 // Types
@@ -148,7 +149,7 @@ export default function BottomNavigation({
 
   // Drag End Handler (Only for Mobile Portrait)
   const handleDragEnd = (
-    event: MouseEvent | TouchEvent | PointerEvent,
+    _event: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo
   ) => {
     if (!isMobilePortrait) return;
@@ -284,7 +285,9 @@ export default function BottomNavigation({
 
             {/* Content Switcher */}
             <div
-              className={`h-full overflow-y-auto ${isCollapsed && isMobilePortrait ? 'overflow-hidden' : ''}`}
+              className={`h-full ${
+                activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'
+              } ${isCollapsed && isMobilePortrait ? 'overflow-hidden' : ''}`}
             >
               {activeSpot && (
                 <SpotDetailContent
@@ -317,7 +320,13 @@ export default function BottomNavigation({
                 />
               )}
               {activeTab === 'chat' && (
-                <ChatbotContent themeColor={themeColor} />
+                <ChatbotContent
+                  themeColor={themeColor}
+                  userLocation={currentLocation || undefined}
+                  onRecommendationReceived={(result) => {
+                    console.log('Recommendation:', result);
+                  }}
+                />
               )}
               {activeTab === 'my-places' && (
                 <MyPlacesContent
@@ -539,11 +548,6 @@ function SpotDetailContent({
           </div>
           {/* Tags */}
           <div className="flex gap-2 mt-3">
-            {spot.filter_type && (
-              <span className="px-2 py-1 bg-gray-100 rounded-md text-xs text-gray-600">
-                {spot.filter_type}
-              </span>
-            )}
             {/* is_indoor property does not exist on SpotCard currently */}
           </div>
         </div>
@@ -630,7 +634,7 @@ interface LocationSettingContentProps extends ContentProps {
 }
 
 function LocationSettingContent({
-  currentLocation,
+  currentLocation: _currentLocation,
   onSelectCurrentLocation,
   onLocationSelect,
   themeBg,
@@ -724,26 +728,6 @@ function Trash2Icon(
       <line x1="10" x2="10" y1="11" y2="17" />
       <line x1="14" x2="14" y1="11" y2="17" />
     </svg>
-  );
-}
-
-function ChatbotContent({ themeColor }: ContentProps) {
-  return (
-    <div className="px-5 pb-6 pt-2 h-64 flex flex-col items-center justify-center text-center">
-      <div
-        className={`w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4 ${themeColor}`}
-      >
-        <Bot size={32} />
-      </div>
-      <h3 className="text-lg font-bold text-gray-900 mb-2">
-        AI 여행 가이드 (준비중)
-      </h3>
-      <p className="text-gray-500 text-sm max-w-xs">
-        곧 챗봇이 제주도 여행 일정을
-        <br />
-        맞춤 추천해드릴 예정이에요! 조금만 기다려주세요.
-      </p>
-    </div>
   );
 }
 

@@ -46,6 +46,7 @@ export default function CategoryFilter({ className = '' }: Props) {
           >
             {categoryOrderedIds.map((id) => {
               const config = OPTION_CONFIG[id];
+              if (!config) return null;
               const isActive = selectedCategoryIds.includes(id);
 
               return (
@@ -54,7 +55,7 @@ export default function CategoryFilter({ className = '' }: Props) {
                   onClick={() => toggleCategoryId(id)}
                   className={`flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-bold transition-colors ${
                     isActive
-                      ? 'bg-orange-500 dark:bg-ormi-green-500 text-white'
+                      ? 'bg-orange-500 dark:bg-ormi-green-500 text-white [&_img]:brightness-0 [&_img]:invert'
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >

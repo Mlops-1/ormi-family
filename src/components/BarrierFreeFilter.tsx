@@ -64,7 +64,7 @@ export default function BarrierFreeFilter({ className = '' }: Props) {
                   onClick={() => toggleBarrierId(id)}
                   className={`flex items-center gap-2 w-full px-3 py-2 rounded-xl text-sm font-bold transition-colors ${
                     isActive
-                      ? 'bg-orange-500 dark:bg-ormi-green-500 text-white'
+                      ? 'bg-orange-500 dark:bg-ormi-green-500 text-white [&_img]:brightness-0 [&_img]:invert'
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
                 >

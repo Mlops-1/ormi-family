@@ -1,13 +1,18 @@
 export const SpotCategory = {
-  TOURIST_SPOT: '관광지',
-  ACCOMMODATION: '숙박',
-  RESTAURANT: '식당',
-  CAFE: '카페',
+  TOUR_SPOT: 'TOUR_SPOT',
+  ACCOMMODATION: 'ACCOMMODATION',
+  RESTAURANT: 'RESTAURANT',
+  CAFE: 'CAFE',
+  FOOD: 'FOOD',
+  EVENT: 'EVENT',
+  SHOPPING: 'SHOPPING',
 } as const;
 
 export type SpotCategoryType = (typeof SpotCategory)[keyof typeof SpotCategory];
 
 export type AccessibilityType =
+  | 'yes_kids'
+  | 'yes_pet'
   | 'wheelchair'
   | 'stroller'
   | 'lactation_room'
@@ -21,7 +26,7 @@ export interface SpotRequest {
   user_id: number;
   mapy: number; // lat
   mapx: number; // lon
-  filter_type?: SpotCategoryType[] | null;
+  category?: string[] | null;
 }
 
 export interface SpotCard {
@@ -47,7 +52,8 @@ export interface SpotCard {
   zip_code: string;
   score: number;
   distance: number;
-  filter_type: string;
+  yes_kids: number;
+  yes_pet: number;
   baby_spare_chair: string;
   stroller: string;
   wheelchair: string;

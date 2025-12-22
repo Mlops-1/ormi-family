@@ -181,23 +181,6 @@ export default function RouteNavigation({
     }
   };
 
-  // Check if waypoint is duplicate
-  const checkDuplicateWaypoint = (newWaypoint: RoutePoint): string | null => {
-    const allPoints = [...wayPoints];
-
-    for (let i = 0; i < allPoints.length; i++) {
-      const point = allPoints[i];
-      if (
-        point.coordinates.lat === newWaypoint.coordinates.lat &&
-        point.coordinates.lon === newWaypoint.coordinates.lon
-      ) {
-        return `경유지 ${i + 1}과 같은 위치입니다`;
-      }
-    }
-
-    return null;
-  };
-
   // Show notification toast
   const showNotification = (message: string) => {
     setNotification(message);
@@ -224,7 +207,7 @@ export default function RouteNavigation({
     const userIdStr = userId ? String(userId) : 'guest';
 
     // Save with actual route path if available
-    addCourse(title, allSpots, userIdStr, undefined, routePath);
+    addCourse(title, allSpots, userIdStr, undefined, routePath || undefined);
 
     showNotification('코스가 저장되었습니다');
     setCourseTitle('');

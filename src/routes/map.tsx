@@ -4,7 +4,6 @@ import BottomNavigation, {
   type RouteAction,
 } from '@/components/BottomNavigation';
 import CategoryFilter from '@/components/CategoryFilter';
-import ChatbotPanel from '@/components/ChatbotPanel';
 import GeoLocation from '@/components/GeoLocation';
 import LoadingScreen from '@/components/LoadingScreen';
 import ModeToggle from '@/components/ModeToggle';
@@ -79,13 +78,12 @@ function MapPageContent() {
     endPoint,
     wayPoints,
     routePath,
-    routeSummary,
     error: routeError,
     setStartPoint,
     setEndPoint,
     addWayPoint,
     convertEndToWaypoint,
-    resetRoute,
+    setWayPoints,
   } = useRouteStore();
 
   // Route Calculation Hook
@@ -101,7 +99,6 @@ function MapPageContent() {
   const {
     selectedCategoryIds,
     selectedBarrierIds,
-    setSelectedCategoryIds,
     setSelectedBarrierIds,
     closeAllMenus,
   } = useFilterStore();
@@ -110,14 +107,13 @@ function MapPageContent() {
   const mainColorClass = isDarkMode ? 'bg-ormi-green-500' : 'bg-orange-500';
 
   // --- Favorites Mode State ---
-  const { isFavoritesMode, setFavoritesMode } = useBottomFilterStore();
+  const { isFavoritesMode } = useBottomFilterStore();
   const [favorites, setFavorites] = useState<FavoriteSpot[]>([]);
 
   // --- Popup Interaction State ---
   const [popupType, setPopupType] = useState<'set-ref' | null>(null);
   const [popupTargetCoords, setPopupTargetCoords] =
     useState<Coordinates | null>(null);
-  const [showChatbot, setShowChatbot] = useState(false);
 
   // Fetch favorites when entering favorites mode
   useEffect(() => {
@@ -139,7 +135,7 @@ function MapPageContent() {
 
   // Fetch Address for Reference Location (Used for Label)
   const APP_KEY = import.meta.env.VITE_TMAP_APP_KEY;
-  const { data: centerAddress } = useQuery({
+  const { data: _centerAddress } = useQuery({
     queryKey: [
       'tmapAddress',
       effectiveCoordinates?.lat,
@@ -167,7 +163,7 @@ function MapPageContent() {
           return parts.length > 0 ? parts.join(' ') : '주소 없음';
         }
         return '';
-      } catch (e) {
+      } catch {
         return '';
       }
     },
@@ -181,7 +177,7 @@ function MapPageContent() {
       user_id: TEMP_USER_ID,
       mapx: effectiveCoordinates?.lon || 0,
       mapy: effectiveCoordinates?.lat || 0,
-      filter_type: selectedCategoryIds.length > 0 ? selectedCategoryIds : null,
+      category: selectedCategoryIds,
     }),
     [effectiveCoordinates, selectedCategoryIds]
   );
@@ -195,15 +191,7 @@ function MapPageContent() {
   // Sync Query Data to Store
   useEffect(() => {
     if (recommendedSpots) {
-      const validSpots = recommendedSpots.filter((spot) => {
-        const invalidPrefix = 'https://blogthumb.pstatic.net/';
-        const isFirstInvalid =
-          spot.first_image && spot.first_image.startsWith(invalidPrefix);
-        const isSecondInvalid =
-          spot.second_image && spot.second_image.startsWith(invalidPrefix);
-        return !isFirstInvalid && !isSecondInvalid;
-      });
-      setAllSpots(validSpots);
+      setAllSpots(recommendedSpots);
     }
   }, [recommendedSpots, setAllSpots]);
 
@@ -416,7 +404,10 @@ function MapPageContent() {
           routeWaypoints={wayPoints.map((w) => w.coordinates)}
           routePath={routePath || undefined}
           markerTheme={isDarkMode ? 'green' : 'orange'}
-          onReferenceMarkerClick={useCallback(() => setShowChatbot(true), [])}
+          onReferenceMarkerClick={useCallback(() => {
+            const { setActiveTab } = useBottomFilterStore.getState();
+            setActiveTab('chat');
+          }, [])}
           onOtherMarkerClick={useCallback((coords: Coordinates) => {
             setPopupTargetCoords(coords);
             setPopupType('set-ref');
@@ -522,7 +513,7 @@ function MapPageContent() {
           )}
           {/* Floating Top Navigation */}
           <div
-            className={`absolute top-6 w-full px-2 md:px-6 z-30 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
+            className={`absolute top-6 w-full px-2 md:px-6 z-50 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
               isRoutingMode && isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
@@ -668,23 +659,6 @@ function MapPageContent() {
           </div>
         </div>
       </div>
-
-      {/* Chatbot Panel */}
-      <AnimatePresence>
-        {showChatbot && (
-          <ChatbotPanel
-            userLocation={effectiveCoordinates}
-            onClose={() => setShowChatbot(false)}
-            onRecommendationReceived={(result) => {
-              console.log('AI Recommendation:', result);
-              addNotification(
-                `${result.spots?.length || 0}개의 추천 장소를 찾았습니다!`
-              );
-              // TODO: Display recommended spots on map
-            }}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

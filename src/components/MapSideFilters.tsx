@@ -65,6 +65,7 @@ export default function MapSideFilters({ isVisible }: Props) {
               >
                 {categoryOrderedIds.map((id, index) => {
                   const config = CATEGORY_CONFIG[id];
+                  if (!config) return null;
                   const isActive = selectedCategoryIds.includes(id);
 
                   return (

@@ -1,20 +1,22 @@
-import {
-  type AccessibilityType,
-  SpotCategory,
-  type SpotCategoryType,
-} from '@/types/spot';
+import { type AccessibilityType, SpotCategory } from '@/types/spot';
 import {
   Accessibility,
   Baby,
-  Bed,
   Bus,
-  Coffee,
   Dog,
-  Landmark,
   Milk,
   ParkingCircle,
-  Utensils,
 } from 'lucide-react';
+
+import AccomIcon from '@/assets/icons/accommodation.svg';
+import CafeIcon from '@/assets/icons/cafe.svg';
+import EventIcon from '@/assets/icons/event.svg';
+import FoodIcon from '@/assets/icons/food.svg';
+import ShoppingIcon from '@/assets/icons/shopping.svg';
+import TourIcon from '@/assets/icons/tour_spot.svg';
+
+import YesKidsIcon from '@/assets/icons/yes_kids.svg';
+import YesPetIcon from '@/assets/icons/yes_pet.svg';
 
 // Custom Icons
 const HighChairIcon = ({ size = 20 }: { size?: number }) => (
@@ -54,28 +56,49 @@ const ElevatorIcon = ({ size = 20 }: { size?: number }) => (
 );
 
 export const CATEGORY_CONFIG: Record<
-  SpotCategoryType,
+  string, // Use string key to handle potential mismatches or subsets
   { label: string; icon: React.ReactNode; color: string }
 > = {
-  [SpotCategory.TOURIST_SPOT]: {
+  [SpotCategory.TOUR_SPOT]: {
     label: '관광지',
-    icon: <Landmark size={20} />,
+    icon: <img src={TourIcon} alt="Tour" className="w-5 h-5" />,
     color: 'bg-green-500',
-  },
-  [SpotCategory.CAFE]: {
-    label: '카페',
-    icon: <Coffee size={20} />,
-    color: 'bg-amber-700',
-  },
-  [SpotCategory.RESTAURANT]: {
-    label: '맛집',
-    icon: <Utensils size={20} />,
-    color: 'bg-orange-500',
   },
   [SpotCategory.ACCOMMODATION]: {
     label: '숙박',
-    icon: <Bed size={20} />,
+    icon: <img src={AccomIcon} alt="Accommodation" className="w-5 h-5" />,
     color: 'bg-blue-600',
+  },
+  [SpotCategory.FOOD]: {
+    label: '식당',
+    icon: <img src={FoodIcon} alt="Food" className="w-5 h-5" />,
+    color: 'bg-orange-500',
+  },
+  [SpotCategory.CAFE]: {
+    label: '카페',
+    icon: <img src={CafeIcon} alt="Cafe" className="w-5 h-5" />,
+    color: 'bg-amber-700',
+  },
+  [SpotCategory.EVENT]: {
+    label: '이벤트',
+    icon: <img src={EventIcon} alt="Event" className="w-5 h-5" />,
+    color: 'bg-pink-500',
+  },
+  [SpotCategory.SHOPPING]: {
+    label: '쇼핑',
+    icon: <img src={ShoppingIcon} alt="Shopping" className="w-5 h-5" />,
+    color: 'bg-purple-600',
+  },
+  [SpotCategory.RESTAURANT]: {
+    label: '식당',
+    icon: <img src={FoodIcon} alt="Food" className="w-5 h-5" />,
+    color: 'bg-orange-500',
+  },
+  // Fallback for TOURIST_SPOT if it exists in user storage
+  ['TOURIST_SPOT']: {
+    label: '관광지',
+    icon: <img src={TourIcon} alt="Tour" className="w-5 h-5" />,
+    color: 'bg-green-500',
   },
 };
 
@@ -83,6 +106,16 @@ export const BARRIER_CONFIG: Record<
   AccessibilityType,
   { label: string; icon: React.ReactNode; color: string }
 > = {
+  yes_kids: {
+    label: '예스키즈존',
+    icon: <img src={YesKidsIcon} alt="Yes Kids" className="w-5 h-5" />,
+    color: 'bg-yellow-500',
+  },
+  yes_pet: {
+    label: '예스독존',
+    icon: <img src={YesPetIcon} alt="Yes Pet" className="w-5 h-5" />,
+    color: 'bg-green-600',
+  },
   wheelchair: {
     label: '휠체어',
     icon: <Accessibility size={20} />,

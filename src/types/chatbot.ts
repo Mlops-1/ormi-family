@@ -11,7 +11,10 @@ export interface RecommendRequest {
   start_name?: string;
 
   // 시나리오별 필수/선택
-  end_spot_id?: string; // destination_only, start_end에서 필수
+  end_spot_id?: string; // destination_only (DB 스팟일 경우)
+  end_lat?: number; // destination_only (임의 장소일 경우)
+  end_lon?: number; // destination_only (임의 장소일 경우)
+  end_name?: string; // destination_only (임의 장소일 경우)
   user_id?: string; // favorites_* 에서 필수
   spot_ids?: string[]; // favorites_route에서 필수
 }

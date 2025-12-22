@@ -66,20 +66,36 @@ export class ChatbotAPI {
     });
 
     const url = `${this.BASE_URL}/stream?${params.toString()}`;
+    console.log('[SSE] Opening connection to:', url);
     const eventSource = new EventSource(url);
 
+    eventSource.onopen = () => {
+      console.log('[SSE] Connection opened successfully');
+    };
+
     eventSource.onmessage = (event) => {
+      const timestamp = new Date().toISOString();
+      console.log(`[SSE] Message received at ${timestamp}:`, event.data);
+
       try {
         const data: StreamEvent = JSON.parse(event.data);
+        console.log('[SSE] Parsed data:', data);
 
         if (data.type === 'log') {
+          console.log('[SSE] Calling onLog callback with:', data.msg);
           callbacks.onLog?.(data.msg);
         } else if (data.type === 'done') {
+          console.log('[SSE] Stream complete, closing connection');
           callbacks.onDone?.(data.result);
           eventSource.close();
         }
       } catch (error) {
-        console.error('Failed to parse SSE message:', error);
+        console.error(
+          '[SSE] Failed to parse SSE message:',
+          error,
+          'Raw data:',
+          event.data
+        );
         callbacks.onError?.(
           error instanceof Error ? error : new Error('Parse error')
         );
@@ -87,7 +103,7 @@ export class ChatbotAPI {
     };
 
     eventSource.onerror = (error) => {
-      console.error('SSE connection error:', error);
+      console.error('[SSE] Connection error:', error);
       callbacks.onError?.(new Error('SSE connection failed'));
       eventSource.close();
     };
@@ -125,7 +141,12 @@ export class ChatbotAPI {
     switch (request.mode) {
       case 'destination_only':
       case 'start_end':
-        if (!request.end_spot_id) missing.push('end_spot_id');
+        if (
+          !request.end_spot_id &&
+          (request.end_lat === undefined || request.end_lon === undefined)
+        ) {
+          missing.push('end_spot_id or (end_lat + end_lon)');
+        }
         break;
 
       case 'favorites_route':
