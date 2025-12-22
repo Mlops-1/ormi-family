@@ -18,6 +18,7 @@ import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import { SPOT_QUERY } from '@/queries/spotQuery';
+import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useFilterStore } from '@/store/filterStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
@@ -87,7 +88,7 @@ function MapPageContent() {
   const isDarkMode = mode === 'pet';
 
   // --- Favorites Mode State ---
-  const [isFavoritesMode, setIsFavoritesMode] = useState(false);
+  const { isFavoritesMode, setFavoritesMode } = useBottomFilterStore();
   const [favorites, setFavorites] = useState<any[]>([]);
 
   // Fetch favorites when entering favorites mode
@@ -526,11 +527,6 @@ function MapPageContent() {
           {/* Bottom Navigation */}
           <BottomNavigation
             activeSpot={activeSpot}
-            isFavoritesMode={isFavoritesMode}
-            onToggleFavoritesMode={() => {
-              setIsFavoritesMode(!isFavoritesMode);
-              setFocusedSpotIndex(-1);
-            }}
             onSpotClose={() => setFocusedSpotIndex(-1)}
             onViewSpotDetails={(spot: any) => {
               setMapMode(false); // To Card View

@@ -1,5 +1,6 @@
 import { FavoritesAPI } from '@/api/favorites';
 import { TEMP_USER_ID } from '@/constants/temp_user';
+import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
@@ -23,12 +24,12 @@ import { useEffect, useState } from 'react';
 export type RouteAction = 'fast' | 'start' | 'end' | 'waypoint';
 
 interface Props {
-  // State
+  // State (from props)
   activeSpot: SpotCard | null;
-  isFavoritesMode: boolean;
+  // isFavoritesMode removed (in store)
 
   // Actions
-  onToggleFavoritesMode: () => void;
+  // onToggleFavoritesMode removed (in store)
   onSpotClose: () => void;
   onViewSpotDetails: (spot: SpotCard) => void;
   onRouteSelect: (action: RouteAction) => void;
@@ -50,8 +51,8 @@ interface Props {
 
 export default function BottomNavigation({
   activeSpot,
-  isFavoritesMode,
-  onToggleFavoritesMode,
+  // isFavoritesMode removed
+  // onToggleFavoritesMode removed
   onSpotClose,
   onViewSpotDetails,
   onRouteSelect,
@@ -62,10 +63,16 @@ export default function BottomNavigation({
   onSelectCurrentLocation,
   onLocationSelect,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<
-    'location' | 'chat' | 'my-places' | null
-  >(null);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const {
+    activeTab,
+    isFavoritesMode,
+    isCollapsed,
+    setActiveTab,
+    setIsCollapsed,
+    toggleFavoritesMode,
+    closeAll,
+  } = useBottomFilterStore();
+
   const { mode } = useUserStore();
   const themeColor = mode === 'pet' ? 'text-ormi-green-600' : 'text-orange-600';
   const themeBg = mode === 'pet' ? 'bg-ormi-green-500' : 'bg-orange-500';
@@ -92,27 +99,29 @@ export default function BottomNavigation({
   }, []);
 
   // Reset tab and collapse state when spot is active
+  // Reset tab and collapse state when spot is active
   useEffect(() => {
     if (activeSpot) {
-      setActiveTab(null);
-      setIsCollapsed(false);
+      closeAll();
+      // setIsCollapsed(false); // closeAll resets collapse too? in store it sets isCollapsed: false.
+      // But wait, if spot is active, maybe we want panels closed.
+      // The original code set activeTab(null) and isCollapsed(false).
+      // closeAll does exaclty that.
     }
-  }, [activeSpot]);
+  }, [activeSpot, closeAll]);
 
   const handleTabClick = (tab: 'location' | 'chat' | 'my-places') => {
-    // If clicking the same tab, close it
-    if (activeTab === tab) {
-      setActiveTab(null);
-      return;
-    }
+    // If clicking the same tab, close it (handled by store logic usually, but let's check store)
+    // Store: activeTab === tab ? null : tab.
 
     // If a spot is active, we might want to close it to show the tab content
     if (activeSpot) {
       onSpotClose();
     }
 
+    // Toggle tab
     setActiveTab(tab);
-    setIsCollapsed(false); // Always open full when clicking tabs
+    // Store automatically expands (isCollapsed = false) when setting tab.
   };
 
   const isPanelOpen = !!activeSpot || !!activeTab;
@@ -137,7 +146,7 @@ export default function BottomNavigation({
   };
 
   return (
-    <div className="fixed inset-0 z-40 pointer-events-none flex flex-col justify-end">
+    <div className="absolute inset-0 z-40 pointer-events-none flex flex-col justify-end">
       {/* Sliding Panel Content */}
       <AnimatePresence>
         {isPanelOpen && (
@@ -210,7 +219,7 @@ export default function BottomNavigation({
               paddingBottom: isMobilePortrait
                 ? isCollapsed
                   ? '0px'
-                  : '80px' // Reduced padding as dock is shorter now
+                  : '140px' // Increased to ensure content (buttons) clears the dock
                 : '20px',
 
               // If My Places is active on non-mobile, push it up higher
@@ -296,8 +305,8 @@ export default function BottomNavigation({
             w-full bg-white border-t border-gray-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] 
             px-6 py-2 pb-5 pointer-events-auto flex items-center justify-between relative
             
-            // Constrain Width on Tablet/Desktop
-            md:max-w-screen-sm md:rounded-t-2xl md:pb-4 md:mb-4 md:shadow-xl md:border-x md:border-gray-100
+            // Floating on Tablet/Desktop
+            md:max-w-screen-md md:rounded-full md:bottom-8 md:mb-0 md:shadow-2xl md:border md:border-gray-100 md:bg-white/90 md:backdrop-blur-xl md:px-10 md:py-4 md:h-20
             
             // Landscape Phone: slightly lower height/padding
             landscape:py-2 landscape:pb-3
@@ -314,7 +323,7 @@ export default function BottomNavigation({
 
           {/* Favorites/Recommend Toggle - Redesigned as Pill/Small Button */}
           <button
-            onClick={onToggleFavoritesMode}
+            onClick={toggleFavoritesMode}
             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 active:scale-95 shadow-sm border ${
               isFavoritesMode
                 ? 'bg-red-50 border-red-200 text-red-500'

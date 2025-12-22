@@ -163,7 +163,7 @@ export default function BackgroundMap({
           false,
           markerTheme
         ),
-        offset: new window.Tmapv2.Point(24, 48), // Bottom-center
+        offset: new window.Tmapv2.Point(0, 0), // HTML transform handles centering
       });
 
       const handleMarkerClick = () => {
@@ -235,7 +235,7 @@ export default function BackgroundMap({
           map: mapInstance.current!,
           iconHTML: createCurrentLocationMarker(mainColor),
           zIndex: 200,
-          offset: new window.Tmapv2.Point(12, 12), // Center
+          offset: new window.Tmapv2.Point(0, 0), // HTML transform handles centering
         });
       }
     }
