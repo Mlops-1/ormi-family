@@ -2,10 +2,13 @@ import { FavoritesAPI } from '@/api/favorites';
 import heartIcon from '@/assets/lotties/heart_icon.json';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
+import { useCourseHistoryStore } from '@/store/courseHistoryStore';
 import { useMapStore, type SavedLocation } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
+import type { Course } from '@/types/course';
 import type { Coordinates } from '@/types/geo';
 import type { FavoriteSpot, SpotCard } from '@/types/spot';
+
 import {
   AnimatePresence,
   motion,
@@ -25,6 +28,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import CourseThumbnailMap from './CourseThumbnailMap';
 
 // Types
 export type RouteAction = 'fast' | 'start' | 'end' | 'waypoint';
@@ -899,20 +903,183 @@ function MyPlacesContent({
             </div>
           )
         ) : (
-          // Courses Tab Placeholder
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
-              <Bot size={32} className="text-gray-400" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">
-              나만의 코스 히스토리
-            </h3>
-            <p className="text-sm max-w-[200px]">
-              AI 챗봇과 함께 만든 여행 코스가 이곳에 저장될 예정입니다.
-            </p>
-          </div>
+          <CoursesTabContent />
         )}
       </div>
+    </div>
+  );
+}
+
+// --- Courses Tab Content ---
+function CoursesTabContent() {
+  const { courses } = useCourseHistoryStore();
+  const { mode } = useUserStore();
+  const themeBg = mode === 'pet' ? 'bg-ormi-green-500' : 'bg-orange-500';
+  const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+
+  // Group courses by date
+  const groupedCourses = courses.reduce(
+    (groups: Record<string, Course[]>, course: Course) => {
+      const groupKey = formatDateGroup(course.createdAt);
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(course);
+      return groups;
+    },
+    {} as Record<string, Course[]>
+  );
+
+  const groupKeys = Object.keys(groupedCourses);
+
+  if (courses.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+        <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+          <MapPin size={32} className="text-gray-400" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-900 mb-2">
+          저장된 코스가 없습니다
+        </h3>
+        <p className="text-sm max-w-[200px]">
+          길찾기에서 코스를 만들고 저장해보세요!
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {groupKeys.map((dateStr) => (
+        <div key={dateStr}>
+          <h4 className="text-sm font-bold text-gray-900 mb-3 ml-1 flex items-center gap-2">
+            {dateStr}
+            <span className="text-xs text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded-md">
+              {groupedCourses[dateStr].length}
+            </span>
+          </h4>
+          <div className="space-y-3">
+            {groupedCourses[dateStr].map((course: Course) => {
+              const isExpanded = expandedCourseId === course.id;
+
+              return (
+                <motion.div
+                  key={course.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-orange-200 hover:shadow-md transition-all cursor-pointer"
+                  onClick={() =>
+                    setExpandedCourseId(isExpanded ? null : course.id)
+                  }
+                >
+                  {/* Use Actual Mini Map for Thumbnail */}
+                  <div className="relative w-full h-40 overflow-hidden bg-gray-100">
+                    <CourseThumbnailMap spots={course.spots} />
+
+                    {/* Overlay Gradient & Badge */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2 pointer-events-none">
+                      <div className="text-white text-sm font-bold bg-black/40 px-3 py-1 rounded-full backdrop-blur-sm">
+                        {course.spots.length}개 장소
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Content */}
+                  <div className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <h5 className="font-bold text-gray-900 text-base flex-1 pr-2">
+                        {course.title}
+                      </h5>
+                      <motion.div
+                        animate={{ rotate: isExpanded ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="shrink-0"
+                      >
+                        <svg
+                          className="w-5 h-5 text-gray-400"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </motion.div>
+                    </div>
+
+                    {/* Collapsible Details */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-2 mb-3">
+                            {course.spots.map((spot, idx: number) => (
+                              <div
+                                key={spot.id}
+                                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+                              >
+                                <div
+                                  className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${
+                                    spot.type === 'start'
+                                      ? 'bg-blue-500'
+                                      : spot.type === 'end'
+                                        ? 'bg-red-500'
+                                        : themeBg
+                                  }`}
+                                >
+                                  {spot.type === 'start'
+                                    ? '출'
+                                    : spot.type === 'end'
+                                      ? '도'
+                                      : idx}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs text-gray-500 mb-0.5">
+                                    {spot.type === 'start'
+                                      ? '출발지'
+                                      : spot.type === 'end'
+                                        ? '도착지'
+                                        : `경유지 ${idx}`}
+                                  </div>
+                                  <div className="font-medium text-gray-900 truncate">
+                                    {spot.name}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Date */}
+                    <div className="text-xs text-gray-400 mt-2">
+                      {new Date(course.createdAt).toLocaleString('ko-KR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

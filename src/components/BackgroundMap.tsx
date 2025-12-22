@@ -18,6 +18,7 @@ interface Props {
   spots: SpotCard[];
   currentSpotIndex: number;
   isMapMode?: boolean;
+  isRoutingMode?: boolean;
   onMapInteraction?: () => void;
   onMarkerClick?: (index: number) => void;
   userLocation?: Coordinates | null;
@@ -56,6 +57,7 @@ export default function BackgroundMap({
   spots,
   currentSpotIndex,
   isMapMode = false,
+  isRoutingMode = false,
   onMapInteraction,
   onMarkerClick,
   userLocation,
@@ -577,12 +579,38 @@ export default function BackgroundMap({
       });
     };
 
+    console.log('🎨 Route Visualization Effect', {
+      hasRoutePath: !!routePath,
+      pathLength: routePath?.length || 0,
+      hasStart: !!routeStart,
+      hasEnd: !!routeEnd,
+      waypoints: routeWaypoints.length,
+    });
+
+    // Clear existing route elements
     if (routePolylineRef.current) {
+      console.log('🗑️ Removing existing polyline');
       routePolylineRef.current.setMap(null);
       routePolylineRef.current = null;
     }
 
+    if (routeStartMarkerRef.current) {
+      routeStartMarkerRef.current.setMap(null);
+      routeStartMarkerRef.current = null;
+    }
+
+    if (routeEndMarkerRef.current) {
+      routeEndMarkerRef.current.setMap(null);
+      routeEndMarkerRef.current = null;
+    }
+
+    routeWaypointMarkersRef.current.forEach((m) => m.setMap(null));
+    routeWaypointMarkersRef.current = [];
+
+    // Only draw route polyline if we have actual path data from API
     if (routePath && routePath.length > 0) {
+      console.log('✏️ Drawing polyline with', routePath.length, 'points');
+      console.log('First 3 points:', routePath.slice(0, 3));
       const path = routePath.map((p) => new window.Tmapv2.LatLng(p.lat, p.lon));
       routePolylineRef.current = new window.Tmapv2.Polyline({
         path: path,
@@ -597,10 +625,6 @@ export default function BackgroundMap({
       map.fitBounds(bounds);
     }
 
-    if (routeStartMarkerRef.current) {
-      routeStartMarkerRef.current.setMap(null);
-      routeStartMarkerRef.current = null;
-    }
     if (routeStart) {
       routeStartMarkerRef.current = new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(routeStart.lat, routeStart.lon),
@@ -611,10 +635,6 @@ export default function BackgroundMap({
       });
     }
 
-    if (routeEndMarkerRef.current) {
-      routeEndMarkerRef.current.setMap(null);
-      routeEndMarkerRef.current = null;
-    }
     if (routeEnd) {
       routeEndMarkerRef.current = new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(routeEnd.lat, routeEnd.lon),
@@ -625,18 +645,25 @@ export default function BackgroundMap({
       });
     }
 
-    routeWaypointMarkersRef.current.forEach((m) => m.setMap(null));
-    routeWaypointMarkersRef.current = [];
     if (routeWaypoints) {
       routeWaypoints.forEach((wp, idx) => {
         const marker = createWaypointMarker(wp.lat, wp.lon, idx);
         routeWaypointMarkersRef.current.push(marker);
       });
     }
-  }, [routeStart, routeEnd, routeWaypoints, routePath, isLoaded, markerTheme]);
+  }, [
+    routeStart,
+    routeEnd,
+    routeWaypoints,
+    routePath,
+    isLoaded,
+    markerTheme,
+    isRoutingMode,
+  ]);
 
   return (
     <div
+      id="map_div"
       ref={mapRef}
       className={`absolute inset-0 w-full h-full pointer-events-auto ${isMapMode ? 'z-10' : 'z-0'}`}
       style={{ touchAction: 'manipulation' }}

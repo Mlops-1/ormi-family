@@ -1,4 +1,3 @@
-import { fetchRoute } from '@/api/tmapRoute';
 import BackgroundMap from '@/components/BackgroundMap';
 import BarrierFreeFilter from '@/components/BarrierFreeFilter';
 import BottomNavigation, {
@@ -18,11 +17,13 @@ import WeatherWidget from '@/components/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
+import { useRouteCalculation } from '@/hooks/useRouteCalculation';
 import { SPOT_QUERY } from '@/queries/spotQuery';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useFilterStore } from '@/store/filterStore';
 import type { SavedLocation } from '@/store/mapStore';
 import { useMapStore } from '@/store/mapStore';
+import { useRouteStore } from '@/store/routeStore';
 import { useUserStore } from '@/store/userStore';
 import type { TmapReverseGeocodeResponse } from '@/types/api/tmap';
 import type { Coordinates } from '@/types/geo';
@@ -53,7 +54,7 @@ function MapPageContent() {
   const { profile } = useAuth(); // Keep using useAuth for now as source of truth for profile
   const { mode } = useUserStore();
 
-  // Global State
+  // Map State (UI and Data)
   const {
     isMapMode,
     setMapMode,
@@ -68,20 +69,34 @@ function MapPageContent() {
     removeNotification,
     allSpots,
     setAllSpots,
+    addSavedLocation,
+    savedLocations,
+  } = useMapStore();
+
+  // Route State (Separated)
+  const {
     startPoint,
     endPoint,
     wayPoints,
     routePath,
-    setRoutePath,
     routeSummary,
-    setRouteSummary,
+    error: routeError,
     setStartPoint,
     setEndPoint,
-    setWayPoints,
+    addWayPoint,
+    convertEndToWaypoint,
     resetRoute,
-    addSavedLocation,
-    savedLocations,
-  } = useMapStore();
+  } = useRouteStore();
+
+  // Route Calculation Hook
+  const { calculateRoute } = useRouteCalculation();
+
+  // Show error notification when route calculation fails
+  useEffect(() => {
+    if (routeError) {
+      addNotification(routeError);
+    }
+  }, [routeError, addNotification]);
 
   const {
     selectedCategoryIds,
@@ -306,7 +321,7 @@ function MapPageContent() {
     return Math.floor(d * 1000);
   };
 
-  // Route Logic
+  // Route Logic - Simplified with new store
   const getSelectedSpotPoint = (): RoutePoint | null => {
     if (!displaySpots[focusedSpotIndex]) return null;
     const spot = displaySpots[focusedSpotIndex];
@@ -317,70 +332,6 @@ function MapPageContent() {
       coordinates: { lat: spot.lat, lon: spot.lon },
     };
   };
-
-  const calculateRoute = async (
-    start: RoutePoint,
-    end: RoutePoint,
-    ways: RoutePoint[]
-  ) => {
-    try {
-      const passList = ways
-        .filter((w) => {
-          const isStart =
-            Math.abs(w.coordinates.lat - start.coordinates.lat) < 0.0001 &&
-            Math.abs(w.coordinates.lon - start.coordinates.lon) < 0.0001;
-          const isEnd =
-            Math.abs(w.coordinates.lat - end.coordinates.lat) < 0.0001 &&
-            Math.abs(w.coordinates.lon - end.coordinates.lon) < 0.0001;
-          return !isStart && !isEnd;
-        })
-        .map(
-          (w) =>
-            `${w.coordinates.lon.toFixed(7)},${w.coordinates.lat.toFixed(7)}`
-        )
-        .join('_');
-
-      const res = await fetchRoute({
-        startX: start.coordinates.lon,
-        startY: start.coordinates.lat,
-        endX: end.coordinates.lon,
-        endY: end.coordinates.lat,
-        passList: passList || undefined,
-      });
-
-      const path: Coordinates[] = [];
-      res.features.forEach((feature) => {
-        if (feature.geometry.type === 'LineString') {
-          const coords = feature.geometry.coordinates as [number, number][];
-          coords.forEach((c) => path.push({ lon: c[0], lat: c[1] }));
-        }
-      });
-      setRoutePath(path);
-
-      const props = res.features[0].properties;
-      if (props.totalTime || props.totalDistance) {
-        setRouteSummary({
-          time: props.totalTime || 0,
-          distance: props.totalDistance || 0,
-        });
-      } else {
-        setRouteSummary(null);
-      }
-    } catch (e) {
-      console.error('Route Error:', e);
-      alert('길찾기 경로를 계산할 수 없습니다.');
-    }
-  };
-
-  // Re-calculate when points change
-  useEffect(() => {
-    if (startPoint && endPoint) {
-      calculateRoute(startPoint, endPoint, wayPoints);
-    } else {
-      setRoutePath(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [startPoint, endPoint, wayPoints]);
 
   const handleRouteOptionSelect = async (action: RouteAction) => {
     const selectedSpot = getSelectedSpotPoint();
@@ -408,27 +359,32 @@ function MapPageContent() {
     } else if (action === 'start') {
       setStartPoint({ ...selectedSpot, type: 'start' });
     } else if (action === 'end') {
+      // If there's already an end point, convert it to waypoint first
       if (endPoint) {
-        const oldEndAsWaypoint: RoutePoint = {
-          ...endPoint,
-          type: 'waypoint',
-          id: `wp-from-end-${Date.now()}`,
-        };
+        // Only convert if it's a different location
         if (
           endPoint.coordinates.lat !== selectedSpot.coordinates.lat ||
           endPoint.coordinates.lon !== selectedSpot.coordinates.lon
         ) {
-          setWayPoints((prev) => [...prev, oldEndAsWaypoint]);
+          convertEndToWaypoint();
         }
       }
       setEndPoint({ ...selectedSpot, type: 'end' });
     } else if (action === 'waypoint') {
-      setWayPoints((prev) => [
-        ...prev,
-        { ...selectedSpot, type: 'waypoint', id: `wp-${Date.now()}` },
-      ]);
+      addWayPoint({
+        ...selectedSpot,
+        type: 'waypoint',
+        id: `wp-${Date.now()}`,
+      });
     }
   };
+
+  // Manual route recalculation
+  const handleManualRouteSearch = useCallback(() => {
+    if (startPoint && endPoint) {
+      calculateRoute(startPoint, endPoint, wayPoints);
+    }
+  }, [startPoint, endPoint, wayPoints, calculateRoute]);
 
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
 
@@ -447,6 +403,7 @@ function MapPageContent() {
           spots={displaySpots || []}
           currentSpotIndex={focusedSpotIndex}
           isMapMode={isMapMode}
+          isRoutingMode={isRoutingMode}
           onMapInteraction={() => {
             if (!isMapMode) setMapMode(true);
           }}
@@ -610,32 +567,8 @@ function MapPageContent() {
           {isRoutingMode && isMapMode && (
             <div className="absolute top-4 left-0 right-0 z-50 px-4 animate-slide-down pointer-events-auto">
               <RouteNavigation
-                startPoint={startPoint}
-                endPoint={endPoint}
-                wayPoints={wayPoints}
-                summary={routeSummary}
-                onWaypointsChange={setWayPoints}
                 isDogMode={isDarkMode}
-                onSetStartToMyLoc={() => {
-                  if (location.coordinates) {
-                    setStartPoint({
-                      id: 'user-loc',
-                      name: '내 위치',
-                      type: 'start',
-                      coordinates: location.coordinates,
-                    });
-                  } else {
-                    alert('현재 위치를 가져올 수 없습니다.');
-                  }
-                }}
-                onRemovePoint={(id) => {
-                  if (startPoint?.id === id) setStartPoint(null);
-                  else if (endPoint?.id === id) setEndPoint(null);
-                  else
-                    setWayPoints((w: RoutePoint[]) =>
-                      w.filter((p) => p.id !== id)
-                    );
-                }}
+                userLocation={location.coordinates}
                 onSearch={() => {
                   if (!endPoint) return;
                   const { name, coordinates } = endPoint;
@@ -644,7 +577,7 @@ function MapPageContent() {
                   )}&goalx=${coordinates.lon}&goaly=${coordinates.lat}`;
                   window.location.href = url;
                 }}
-                onReset={resetRoute}
+                onManualSearch={handleManualRouteSearch}
               />
             </div>
           )}
