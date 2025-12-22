@@ -1,4 +1,4 @@
-import type { SpotCard } from '@/types/spot';
+import type { FavoriteSpot } from '@/types/spot';
 import instance from './instance';
 
 export interface AddFavoriteRequest {
@@ -29,8 +29,11 @@ export const FavoritesAPI = {
   /**
    * Get list of favorites
    */
-  getFavorites: (params: GetFavoritesRequest) =>
-    instance.get<SpotCard[]>('/favorites', {
+  getFavorites: async (params: GetFavoritesRequest) => {
+    const response = await instance.get<FavoriteSpot[]>('/favorites', {
       params,
-    }),
+    });
+    console.log('API: Get Favorites Response:', response.data);
+    return response;
+  },
 };

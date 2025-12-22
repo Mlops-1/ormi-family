@@ -1,10 +1,10 @@
 import { FavoritesAPI } from '@/api/favorites';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
-import { useMapStore } from '@/store/mapStore';
+import { useMapStore, type SavedLocation } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
-import type { SpotCard } from '@/types/spot';
+import type { FavoriteSpot, SpotCard } from '@/types/spot';
 import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
 import {
   Bot,
@@ -22,6 +22,11 @@ import { useEffect, useState } from 'react';
 
 // Types
 export type RouteAction = 'fast' | 'start' | 'end' | 'waypoint';
+
+interface ContentProps {
+  themeColor: string;
+  themeBg?: string;
+}
 
 interface Props {
   // State (from props)
@@ -274,7 +279,7 @@ export default function BottomNavigation({
                     onSelectCurrentLocation();
                     setActiveTab(null);
                   }}
-                  onLocationSelect={(loc: any) => {
+                  onLocationSelect={(loc: SavedLocation) => {
                     onLocationSelect(loc);
                     setActiveTab(null);
                   }}
@@ -306,7 +311,7 @@ export default function BottomNavigation({
             px-6 py-2 pb-5 pointer-events-auto flex items-center justify-between relative
             
             // Floating on Tablet/Desktop
-            md:max-w-screen-md md:rounded-full md:bottom-8 md:mb-0 md:shadow-2xl md:border md:border-gray-100 md:bg-white/90 md:backdrop-blur-xl md:px-10 md:py-4 md:h-20
+            md:max-w-3xl md:rounded-full md:bottom-8 md:mb-0 md:shadow-2xl md:border md:border-gray-100 md:bg-white/90 md:backdrop-blur-xl md:px-10 md:py-4 md:h-20
             
             // Landscape Phone: slightly lower height/padding
             landscape:py-2 landscape:pb-3
@@ -423,6 +428,18 @@ function NavButton({
 
 // --- Content Subcomponents ---
 
+interface SpotDetailContentProps extends ContentProps {
+  spot: SpotCard;
+  distance?: number;
+  onClose: () => void;
+  onViewCard: () => void;
+  onRouteSelect: (action: RouteAction) => void;
+  hasStart: boolean;
+  hasEnd: boolean;
+  isCollapsed: boolean;
+  hideCloseButton?: boolean;
+}
+
 function SpotDetailContent({
   spot,
   distance,
@@ -435,7 +452,7 @@ function SpotDetailContent({
   themeBg,
   isCollapsed,
   hideCloseButton,
-}: any) {
+}: SpotDetailContentProps) {
   const formatDistance = (m?: number) => {
     if (!m) return '';
     if (m >= 1000) return `${(m / 1000).toFixed(1)}km`;
@@ -491,16 +508,12 @@ function SpotDetailContent({
           </div>
           {/* Tags */}
           <div className="flex gap-2 mt-3">
-            {spot.category && (
+            {spot.filter_type && (
               <span className="px-2 py-1 bg-gray-100 rounded-md text-xs text-gray-600">
-                {spot.category}
+                {spot.filter_type}
               </span>
             )}
-            {spot.is_indoor && (
-              <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-md text-xs">
-                실내
-              </span>
-            )}
+            {/* is_indoor property does not exist on SpotCard currently */}
           </div>
         </div>
         {!hideCloseButton && (
@@ -555,8 +568,14 @@ function SpotDetailContent({
   );
 }
 
-function RouteBtn({ icon, label, onClick, color, disabled }: any) {
-  const colors: any = {
+interface RouteBtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  icon: React.ReactNode;
+  label: string;
+  color: 'blue' | 'red' | 'green';
+}
+
+function RouteBtn({ icon, label, onClick, color, disabled }: RouteBtnProps) {
+  const colors = {
     blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
     red: 'bg-red-50 text-red-600 hover:bg-red-100',
     green: 'bg-green-50 text-green-600 hover:bg-green-100',
@@ -573,12 +592,18 @@ function RouteBtn({ icon, label, onClick, color, disabled }: any) {
   );
 }
 
+interface LocationSettingContentProps extends ContentProps {
+  currentLocation: Coordinates | null;
+  onSelectCurrentLocation: () => void;
+  onLocationSelect: (loc: SavedLocation) => void;
+}
+
 function LocationSettingContent({
   currentLocation,
   onSelectCurrentLocation,
   onLocationSelect,
   themeBg,
-}: any) {
+}: LocationSettingContentProps) {
   const { savedLocations, removeSavedLocation } = useMapStore();
 
   return (
@@ -613,7 +638,7 @@ function LocationSettingContent({
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-2">
-            {savedLocations.map((loc: any) => (
+            {savedLocations.map((loc) => (
               <div key={loc.id} className="relative group">
                 <button
                   onClick={() => onLocationSelect(loc)}
@@ -646,7 +671,9 @@ function LocationSettingContent({
   );
 }
 
-function Trash2Icon(props: any) {
+function Trash2Icon(
+  props: React.SVGProps<SVGSVGElement> & { size?: number | string }
+) {
   return (
     <svg
       {...props}
@@ -669,7 +696,7 @@ function Trash2Icon(props: any) {
   );
 }
 
-function ChatbotContent({ themeColor }: any) {
+function ChatbotContent({ themeColor }: ContentProps) {
   return (
     <div className="px-5 pb-6 pt-2 h-64 flex flex-col items-center justify-center text-center">
       <div
@@ -689,65 +716,175 @@ function ChatbotContent({ themeColor }: any) {
   );
 }
 
+// --- Date Formatting Helper ---
+function formatDateGroup(dateStr: string): string {
+  if (!dateStr) return '날짜 미상';
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  // Reset hours for comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffTime = today.getTime() - target.getTime();
+  const diffDays = diffTime / (1000 * 3600 * 24);
+
+  if (diffDays === 0) return '오늘';
+  if (diffDays === 1) return '어제';
+  if (diffDays < 7) return '이번 주';
+  if (diffDays < 30) return '이번 달';
+
+  return `${date.getFullYear()}년 ${date.getMonth() + 1}월`;
+}
+
+// --- My Places Content with Tabs ---
 function MyPlacesContent({
   onSpotClick,
 }: {
   onSpotClick: (spot: SpotCard) => void;
 }) {
-  const [favorites, setFavorites] = useState<SpotCard[]>([]);
+  const [activeTab, setActiveTab] = useState<'places' | 'courses'>('places');
+  const [favorites, setFavorites] = useState<FavoriteSpot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      setIsLoading(true);
-      try {
-        const res = await FavoritesAPI.getFavorites({ user_id: TEMP_USER_ID });
-        setFavorites(res.data || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    load();
-  }, []);
+    if (activeTab === 'places') {
+      const load = async () => {
+        setIsLoading(true);
+        try {
+          const res = await FavoritesAPI.getFavorites({
+            user_id: TEMP_USER_ID,
+          });
+          // Sort by favorite_created_at descending (newest first)
+          const sorted = (res.data || []).sort((a, b) => {
+            const dateA = new Date(a.favorite_created_at || 0).getTime();
+            const dateB = new Date(b.favorite_created_at || 0).getTime();
+            return dateB - dateA;
+          });
+          setFavorites(sorted);
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      load();
+    }
+  }, [activeTab]);
 
-  if (isLoading)
-    return <div className="p-8 text-center text-gray-400">로딩 중...</div>;
-  if (favorites.length === 0)
-    return (
-      <div className="p-8 text-center text-gray-400 flex flex-col items-center gap-2">
-        <Heart size={32} className="text-gray-200" />
-        <p>아직 찜한 장소가 없어요.</p>
-      </div>
-    );
+  // Group favorites by date
+  const groupedFavorites = favorites.reduce(
+    (groups, spot) => {
+      const groupKey = formatDateGroup(spot.favorite_created_at);
+      if (!groups[groupKey]) {
+        groups[groupKey] = [];
+      }
+      groups[groupKey].push(spot);
+      return groups;
+    },
+    {} as Record<string, FavoriteSpot[]>
+  );
+
+  // Preserve order of groups (Today -> Yesterday -> etc) requires manual sorting of keys if they weren't inserted in order.
+  // Since we sorted spots by date desc, keys *should* be created in order of appearance (Newest -> Oldest).
+  // Object.keys order is generally insertion order for strings in modern JS, but let's be safe.
+  const groupKeys = Object.keys(groupedFavorites); // Detailed sorting if needed, but iteration usually follows insertion for non-integer keys.
 
   return (
-    <div className="px-5 pb-6 pt-2">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-gray-900">
-          내 장소 ({favorites.length})
-        </h3>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {favorites.map((spot) => (
-          <button
-            key={spot.content_id}
-            onClick={() => onSpotClick(spot)}
-            className="text-left group relative aspect-[4/3] rounded-xl overflow-hidden bg-gray-100"
-          >
-            <img
-              src={spot.first_image || ''}
-              className="w-full h-full object-cover transition-transform group-hover:scale-110"
-              onError={(e: any) => (e.target.style.display = 'none')}
+    <div className="flex flex-col h-full">
+      {/* Tabs Header */}
+      <div className="flex border-b border-gray-100 px-6 pt-2">
+        <button
+          onClick={() => setActiveTab('places')}
+          className={`px-4 py-3 text-sm font-bold relative transition-colors ${
+            activeTab === 'places' ? 'text-gray-900' : 'text-gray-400'
+          }`}
+        >
+          장소
+          {activeTab === 'places' && (
+            <motion.div
+              layoutId="myplaces-tab"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
             />
-            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3 pt-8">
-              <div className="text-white font-bold text-sm truncate">
-                {spot.title}
-              </div>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('courses')}
+          className={`px-4 py-3 text-sm font-bold relative transition-colors ${
+            activeTab === 'courses' ? 'text-gray-900' : 'text-gray-400'
+          }`}
+        >
+          코스
+          {activeTab === 'courses' && (
+            <motion.div
+              layoutId="myplaces-tab"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+            />
+          )}
+        </button>
+      </div>
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-y-auto px-5 pb-6 pt-4">
+        {activeTab === 'places' ? (
+          isLoading ? (
+            <div className="p-8 text-center text-gray-400">로딩 중...</div>
+          ) : favorites.length === 0 ? (
+            <div className="mt-10 flex flex-col items-center justify-center text-gray-400 gap-3">
+              <Heart size={40} className="text-gray-200" />
+              <p>아직 찜한 장소가 없어요.</p>
             </div>
-          </button>
-        ))}
+          ) : (
+            <div className="space-y-6">
+              {groupKeys.map((dateStr) => (
+                <div key={dateStr}>
+                  <h4 className="text-sm font-bold text-gray-900 mb-3 ml-1 flex items-center gap-2">
+                    {dateStr}
+                    <span className="text-xs text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded-md">
+                      {groupedFavorites[dateStr].length}
+                    </span>
+                  </h4>
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+                    {groupedFavorites[dateStr].map((spot) => (
+                      <button
+                        key={spot.content_id}
+                        onClick={() => onSpotClick(spot)}
+                        className="text-left group relative aspect-square rounded-xl overflow-hidden bg-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                      >
+                        <img
+                          src={spot.first_image || ''}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          onError={(
+                            e: React.SyntheticEvent<HTMLImageElement>
+                          ) => (e.currentTarget.style.display = 'none')}
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        <div className="absolute inset-x-0 bottom-0 p-3 bg-linear-to-t from-black/60 via-black/30 to-transparent">
+                          <div className="text-white font-bold text-sm truncate">
+                            {spot.title}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+          // Courses Tab Placeholder
+          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-gray-400">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+              <Bot size={32} className="text-gray-400" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">
+              나만의 코스 히스토리
+            </h3>
+            <p className="text-sm max-w-[200px]">
+              AI 챗봇과 함께 만든 여행 코스가 이곳에 저장될 예정입니다.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

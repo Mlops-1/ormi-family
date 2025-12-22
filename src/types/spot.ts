@@ -59,6 +59,10 @@ export interface SpotCard {
   reviews: Review[];
 }
 
+export interface FavoriteSpot extends SpotCard {
+  favorite_created_at: string; // ISO string
+}
+
 export interface Review {
   review_id: number;
   content_id: number;

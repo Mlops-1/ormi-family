@@ -24,7 +24,7 @@ import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import type { RoutePoint } from '@/types/map';
-import type { AccessibilityType } from '@/types/spot';
+import type { AccessibilityType, FavoriteSpot } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -89,14 +89,19 @@ function MapPageContent() {
 
   // --- Favorites Mode State ---
   const { isFavoritesMode, setFavoritesMode } = useBottomFilterStore();
-  const [favorites, setFavorites] = useState<any[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteSpot[]>([]);
 
   // Fetch favorites when entering favorites mode
   useEffect(() => {
     if (isFavoritesMode) {
       import('@/api/favorites').then(({ FavoritesAPI }) => {
         FavoritesAPI.getFavorites({ user_id: TEMP_USER_ID }).then((res) => {
-          setFavorites(res.data || []);
+          const sorted = (res.data || []).sort((a, b) => {
+            const dateA = new Date(a.favorite_created_at || 0).getTime();
+            const dateB = new Date(b.favorite_created_at || 0).getTime();
+            return dateB - dateA;
+          });
+          setFavorites(sorted);
         });
       });
     }
