@@ -1,26 +1,24 @@
 import { fetchRoute } from '@/api/tmapRoute';
 import BackgroundMap from '@/components/BackgroundMap';
 import BarrierFreeFilter from '@/components/BarrierFreeFilter';
+import BottomNavigation, {
+  type RouteAction,
+} from '@/components/BottomNavigation';
 import CategoryFilter from '@/components/CategoryFilter';
-import FavoritesBottomSheet from '@/components/FavoritesBottomSheet';
 import GeoLocation from '@/components/GeoLocation';
 import LoadingScreen from '@/components/LoadingScreen';
-import LocationManager from '@/components/LocationManager';
 import ModeToggle from '@/components/ModeToggle';
 import AppNotification from '@/components/Notification';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import RouteNavigation from '@/components/RouteNavigation';
-import SpotInteractionSheet, {
-  type RouteAction,
-} from '@/components/SpotInteractionSheet';
 import SwipeableCardList from '@/components/SwipeableCardList';
 import WeatherWidget from '@/components/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';
 import { SPOT_QUERY } from '@/queries/spotQuery';
-import { INITIAL_CATEGORY_IDS, useFilterStore } from '@/store/filterStore';
+import { useFilterStore } from '@/store/filterStore';
 import { useMapStore } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
@@ -28,7 +26,7 @@ import type { RoutePoint } from '@/types/map';
 import type { AccessibilityType } from '@/types/spot';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 export const Route = createFileRoute('/map')({
   component: MapPage,
@@ -88,7 +86,20 @@ function MapPageContent() {
 
   const isDarkMode = mode === 'pet';
 
-  // Remove Theme Detection useEffect as it's now derived from store
+  // --- Favorites Mode State ---
+  const [isFavoritesMode, setIsFavoritesMode] = useState(false);
+  const [favorites, setFavorites] = useState<any[]>([]);
+
+  // Fetch favorites when entering favorites mode
+  useEffect(() => {
+    if (isFavoritesMode) {
+      import('@/api/favorites').then(({ FavoritesAPI }) => {
+        FavoritesAPI.getFavorites({ user_id: TEMP_USER_ID }).then((res) => {
+          setFavorites(res.data || []);
+        });
+      });
+    }
+  }, [isFavoritesMode]);
 
   const effectiveCoordinates = manualLocation || location.coordinates;
 
@@ -137,7 +148,7 @@ function MapPageContent() {
     if (selectedBarrierIds.length === 0 || allSpots.length === 0) return;
 
     // Calculate ratings for all spots based on current barrier filters
-    const ratedSpots = allSpots.map((spot) => {
+    const ratedSpots = allSpots.map((spot: any) => {
       const matchedFilters = selectedBarrierIds.filter((f) => {
         const val = spot[f as keyof typeof spot];
         return typeof val === 'string' && val.trim() !== '';
@@ -163,10 +174,14 @@ function MapPageContent() {
 
   // Client-side Accessibility Filter logic
   const { displaySpots, isFallback } = useMemo(() => {
+    if (isFavoritesMode) {
+      return { displaySpots: favorites, isFallback: false };
+    }
+
     if (!allSpots) return { displaySpots: [], isFallback: false };
 
     // Strict AND match
-    const filtered = allSpots.filter((spot) => {
+    const filtered = allSpots.filter((spot: any) => {
       return selectedBarrierIds.every((filter: AccessibilityType) => {
         const val = spot[filter];
         return val && val.trim() !== '';
@@ -188,7 +203,7 @@ function MapPageContent() {
     }
 
     return { displaySpots: [], isFallback: false };
-  }, [allSpots, selectedBarrierIds]);
+  }, [allSpots, selectedBarrierIds, isFavoritesMode, favorites]);
 
   // Effect to handle automatic map mode switch on fallback
   useEffect(() => {
@@ -360,6 +375,13 @@ function MapPageContent() {
 
   const isRoutingMode = !!(startPoint || endPoint || wayPoints.length > 0);
 
+  // Derive Active Spot for BottomNavigation
+  // If isFavoritesMode is toggled, displaySpots is favorites. focusedSpotIndex relies on it.
+  const activeSpot =
+    isMapMode && displaySpots[focusedSpotIndex]
+      ? displaySpots[focusedSpotIndex]
+      : null;
+
   return (
     <div className="relative w-full h-dvh overflow-hidden bg-white font-jeju">
       {isFetching && <LoadingScreen />}
@@ -441,16 +463,10 @@ function MapPageContent() {
                     compact={true}
                   />
                 </div>
+                {/* Removed LocationManager */}
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
                 <div className="shrink-0 flex justify-center">
                   <WeatherWidget coordinates={effectiveCoordinates} />
-                </div>
-                <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
-                <div className="shrink-0">
-                  <LocationManager
-                    currentLocation={location.coordinates}
-                    onSelectCurrentLocation={() => setManualLocation(null)}
-                  />
                 </div>
                 <div className="h-6 w-px bg-gray-200 mx-1 shrink-0" />
                 <div className="shrink-0">
@@ -463,32 +479,8 @@ function MapPageContent() {
               </div>
             </div>
           </div>
-          {/* Side Piano Keys Removed as per user request */}
-          {/* Spot Interaction Sheet */}
-          {isMapMode && displaySpots[focusedSpotIndex] && (
-            <div className="pointer-events-auto">
-              <SpotInteractionSheet
-                spot={displaySpots[focusedSpotIndex]}
-                distance={
-                  effectiveCoordinates
-                    ? getDistanceFromLatLonInMeters(
-                        effectiveCoordinates.lat,
-                        effectiveCoordinates.lon,
-                        displaySpots[focusedSpotIndex].lat,
-                        displaySpots[focusedSpotIndex].lon
-                      )
-                    : undefined
-                }
-                markerTheme={isDarkMode ? 'green' : 'orange'}
-                onClose={() => setFocusedSpotIndex(-1)}
-                onViewCard={() => setMapMode(false)}
-                onRouteSelect={handleRouteOptionSelect}
-                hasStart={!!startPoint}
-                hasEnd={!!endPoint}
-              />
-            </div>
-          )}
-          {/* Route Navigation Header - Needs extraction ideally, but keeping inline for logic proximity unless forced */}
+
+          {/* Route Navigation Header */}
           {isRoutingMode && isMapMode && (
             <div className="absolute top-4 left-0 right-0 z-50 px-4 animate-slide-down pointer-events-auto">
               <RouteNavigation
@@ -530,32 +522,43 @@ function MapPageContent() {
               />
             </div>
           )}
-          <FavoritesBottomSheet
-            onSpotClick={(spot) => {
-              let updatedAllSpots = allSpots;
-              const exists = allSpots.find(
-                (s) => s.content_id === spot.content_id
-              );
-              if (!exists) {
-                // If adding from favs, update store
-                setAllSpots((prev) => [spot, ...prev]);
-                updatedAllSpots = [spot, ...allSpots];
-              }
 
-              setSelectedCategoryIds(INITIAL_CATEGORY_IDS);
-              setSelectedBarrierIds([]);
-              setMapMode(false);
-
-              const idx = updatedAllSpots.findIndex(
-                (s) => s.content_id === spot.content_id
-              );
-              setFocusedSpotIndex(idx !== -1 ? idx : 0);
+          {/* Bottom Navigation */}
+          <BottomNavigation
+            activeSpot={activeSpot}
+            isFavoritesMode={isFavoritesMode}
+            onToggleFavoritesMode={() => {
+              setIsFavoritesMode(!isFavoritesMode);
+              setFocusedSpotIndex(-1);
             }}
+            onSpotClose={() => setFocusedSpotIndex(-1)}
+            onViewSpotDetails={(spot: any) => {
+              setMapMode(false); // To Card View
+            }}
+            onRouteSelect={handleRouteOptionSelect}
+            currentLocation={location.coordinates}
+            distanceToSpot={
+              activeSpot && effectiveCoordinates
+                ? getDistanceFromLatLonInMeters(
+                    effectiveCoordinates.lat,
+                    effectiveCoordinates.lon,
+                    activeSpot.lat,
+                    activeSpot.lon
+                  )
+                : undefined
+            }
+            hasStart={!!startPoint}
+            hasEnd={!!endPoint}
+            onSelectCurrentLocation={() => setManualLocation(null)}
+            onLocationSelect={(loc: any) => setManualLocation(loc.coordinates)}
           />
+
           <OnboardingOverlay
             isVisible={showOnboarding}
             onClose={() => setShowOnboarding(false)}
           />
+
+          {/* Card List (Overlay) when NOT in Map Mode */}
           <div
             className={`flex-1 flex flex-col justify-end min-h-0 ${isMapMode ? 'pointer-events-none' : 'pointer-events-auto'}`}
             onClick={() => {
@@ -578,8 +581,10 @@ function MapPageContent() {
                   className="w-full h-full md:w-[380px] md:absolute md:left-0 md:top-0 md:bottom-0 md:z-30 flex flex-col relative z-20 pointer-events-auto"
                 >
                   {displaySpots.length === 0 && !isFetching ? (
-                    <div className="mt-auto mx-4 text-jeju-light-text-disabled p-8 text-center bg-white/90 backdrop-blur rounded-3xl shadow-sm border border-jeju-light-divider">
-                      표시할 장소가 없습니다.
+                    <div className="mt-auto mx-4 text-jeju-light-text-disabled p-8 text-center bg-white/90 backdrop-blur rounded-3xl shadow-sm border border-jeju-light-divider mb-20">
+                      {isFavoritesMode
+                        ? '찜한 장소가 없습니다.'
+                        : '표시할 장소가 없습니다.'}
                     </div>
                   ) : (
                     <SwipeableCardList
@@ -590,7 +595,7 @@ function MapPageContent() {
                       onIndexChange={(index) => setFocusedSpotIndex(index)}
                       onToggleMapMode={() => setMapMode(true)}
                       onLoadMore={() => {
-                        /* Pagination not supported by backend recommendation API yet */
+                        /* Pagination not supported */
                       }}
                       selectedIndex={
                         focusedSpotIndex === -1 ? 0 : focusedSpotIndex
@@ -603,7 +608,7 @@ function MapPageContent() {
 
                   {isFetching && displaySpots.length > 0 && (
                     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm z-50">
-                      추가 장소 로딩 중...
+                      Loading...
                     </div>
                   )}
                 </motion.div>
