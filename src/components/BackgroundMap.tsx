@@ -251,13 +251,13 @@ export default function BackgroundMap({
     const animationData = isDog ? walkingDogAnimation : strollerAnimation;
     const filterStyle = isDog
       ? 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white)'
-      : 'drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 black) drop-shadow(-1px 0 0 black) drop-shadow(0 1px 0 black) drop-shadow(0 -1px 0 black)';
+      : `drop-shadow(2px 0 0 white) drop-shadow(-2px 0 0 white) drop-shadow(0 2px 0 white) drop-shadow(0 -2px 0 white) drop-shadow(1px 0 0 ${mainColor}) drop-shadow(-1px 0 0 ${mainColor}) drop-shadow(0 1px 0 ${mainColor}) drop-shadow(0 -1px 0 ${mainColor})`;
 
     const contentStyle = {
       width: isDog ? '130%' : '50%',
       height: isDog ? '130%' : '50%',
       margin: '0 auto',
-      filter: filterStyle,
+      filter: `${filterStyle} drop-shadow(0 0 15px ${mainColor})`, // Added glow
       transform:
         routePath && routePath.length > 1 && routePath[1].lon < routePath[0].lon
           ? 'scaleX(-1)'
@@ -274,9 +274,10 @@ export default function BackgroundMap({
             display: 'flex',
             alignItems: 'flex-end',
             justifyContent: 'center',
+            position: 'relative',
           }}
         >
-          <div style={{ ...contentStyle, marginBottom: '10%' }}>
+          <div style={{ ...contentStyle, marginBottom: '10%', zIndex: 1 }}>
             <Lottie
               animationData={animationData}
               loop={true}
@@ -305,7 +306,7 @@ export default function BackgroundMap({
         map: mapInstance.current!,
         iconHTML: `<div id="${markerId}" style="width: 100px; height: 100px; pointer-events: none;"></div>`,
         zIndex: 300,
-        offset: new window.Tmapv2.Point(50, 95), // Align base of icon to location
+        offset: new window.Tmapv2.Point(50, isDog ? 75 : 95), // Adjust offset for Dog mode to align visually with Toddler mode
       });
       referenceMarkerRef.current = marker;
 
@@ -325,7 +326,7 @@ export default function BackgroundMap({
       };
       mountLottie();
     }
-  }, [centerLocation, isLoaded, markerTheme, routePath]);
+  }, [centerLocation, isLoaded, markerTheme, routePath, mainColor]);
 
   // 3. Saved Locations Markers (Pins)
   useEffect(() => {

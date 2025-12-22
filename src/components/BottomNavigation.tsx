@@ -1,11 +1,18 @@
 import { FavoritesAPI } from '@/api/favorites';
+import heartIcon from '@/assets/lotties/heart_icon.json';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useMapStore, type SavedLocation } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import type { FavoriteSpot, SpotCard } from '@/types/spot';
-import { AnimatePresence, motion, type PanInfo } from 'framer-motion';
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  type PanInfo,
+} from 'framer-motion';
+import Lottie, { type LottieRefCurrentProps } from 'lottie-react';
 import {
   Bot,
   Flag,
@@ -15,10 +22,9 @@ import {
   Menu,
   Navigation,
   Plus,
-  Smile,
   X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // Types
 export type RouteAction = 'fast' | 'start' | 'end' | 'waypoint';
@@ -84,6 +90,11 @@ export default function BottomNavigation({
 
   // State to track window width/orientation for responsive logic
   const [isMobilePortrait, setIsMobilePortrait] = useState(true);
+
+  // Drag controls for reliable gesture handling on touch devices
+  const dragControls = useDragControls();
+
+  const lottieRef = useRef<LottieRefCurrentProps>(null);
 
   useEffect(() => {
     const checkResponsive = () => {
@@ -151,7 +162,9 @@ export default function BottomNavigation({
   };
 
   return (
-    <div className="absolute inset-0 z-40 pointer-events-none flex flex-col justify-end">
+    <div
+      className={`absolute inset-0 pointer-events-none flex flex-col justify-end ${isMobilePortrait ? 'z-20' : 'z-40'}`}
+    >
       {/* Sliding Panel Content */}
       <AnimatePresence>
         {isPanelOpen && (
@@ -165,14 +178,19 @@ export default function BottomNavigation({
             animate={
               isMobilePortrait
                 ? {
-                    y: isCollapsed ? 'calc(100% - 90px)' : 0,
+                    y: isCollapsed ? 'calc(100% - 110px)' : 0,
                     opacity: 1,
                     x: 0,
+                    paddingTop:
+                      activeTab === 'my-places' && !isCollapsed
+                        ? '100px'
+                        : '0px',
                   }
                 : {
                     x: 0,
                     y: 0,
                     opacity: 1,
+                    paddingTop: '0px',
                   }
             }
             exit={
@@ -183,6 +201,8 @@ export default function BottomNavigation({
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             // Drag Props (Only enable Y drag on Mobile Portrait)
             drag={isMobilePortrait ? 'y' : false}
+            dragControls={dragControls}
+            dragListener={false} // Disable auto-drag from anywhere, rely on controls
             dragConstraints={{ top: 0, bottom: 0 }}
             onDragEnd={handleDragEnd}
             dragElastic={0.2}
@@ -193,7 +213,7 @@ export default function BottomNavigation({
                 // Mobile Portrait
                 w-full max-w-lg mx-auto left-0 right-0 rounded-t-3xl
                 bottom-0 
-                ${isMobilePortrait ? 'z-50' : 'z-40'}
+                ${isMobilePortrait ? 'z-20 rounded-t-none' : 'z-40'}
 
                 // Tablet (md)
                 md:w-96 md:rounded-2xl md:bottom-24 md:left-4 md:right-auto md:max-w-none md:top-auto
@@ -205,12 +225,16 @@ export default function BottomNavigation({
             style={{
               // Heights
               height: isMobilePortrait
-                ? 'auto'
+                ? activeTab === 'my-places'
+                  ? '100dvh' // Full screen for My Places
+                  : 'auto'
                 : activeTab === 'my-places'
-                  ? 'calc(100vh - 100px)' // Taller for My Places on tablet/desktop as requested
+                  ? 'calc(100vh - 100px)'
                   : 'auto',
               maxHeight: isMobilePortrait
-                ? '80vh'
+                ? activeTab === 'my-places'
+                  ? '100dvh'
+                  : '80vh'
                 : activeTab === 'my-places'
                   ? '90vh'
                   : '85vh',
@@ -224,7 +248,7 @@ export default function BottomNavigation({
               paddingBottom: isMobilePortrait
                 ? isCollapsed
                   ? '0px'
-                  : '140px' // Increased to ensure content (buttons) clears the dock
+                  : '140px'
                 : '20px',
 
               // If My Places is active on non-mobile, push it up higher
@@ -233,10 +257,11 @@ export default function BottomNavigation({
                 : {}),
             }}
           >
-            {/* Drag Handle - Only on Mobile */}
+            {/* Drag Handle - Always visible on Mobile Portrait */}
             {isMobilePortrait && (
               <div
-                className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none"
+                className="w-full flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing touch-none z-10 relative bg-white"
+                onPointerDown={(e) => dragControls.start(e)}
                 onClick={() => setIsCollapsed(!isCollapsed)}
               >
                 <div className="w-12 h-1.5 bg-gray-200 rounded-full" />
@@ -317,7 +342,45 @@ export default function BottomNavigation({
             landscape:py-2 landscape:pb-3
         `}
         >
-          {/* Location Setting */}
+          {/* 1. Heart / Recommend (Far Left) */}
+          <button
+            onClick={() => {
+              toggleFavoritesMode();
+              lottieRef.current?.goToAndPlay(0);
+            }}
+            className={`flex flex-col items-center gap-1 transition-all active:scale-95 px-2 w-[72px] relative ${
+              isFavoritesMode
+                ? themeColor
+                : 'text-gray-400 hover:cursor-pointer'
+            }`}
+          >
+            {/* Lottie Container - Absolute to be larger but centered */}
+            <div className="relative w-7 h-7 flex items-center justify-center">
+              <div
+                className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[35%] w-16 h-16 pointer-events-none transition-all duration-300 ${
+                  isFavoritesMode ? '' : 'grayscale opacity-60'
+                }`}
+                style={{
+                  width: '90px',
+                  height: '90px',
+                }}
+              >
+                <Lottie
+                  lottieRef={lottieRef}
+                  animationData={heartIcon}
+                  loop={false}
+                  autoplay={false}
+                />
+              </div>
+            </div>
+            <span
+              className={`text-[10px] font-medium z-10 ${isFavoritesMode ? 'font-bold' : ''}`}
+            >
+              찜/추천
+            </span>
+          </button>
+
+          {/* 2. Reference Location */}
           <NavButton
             icon={<MapPin size={24} />}
             label="기준위치"
@@ -326,46 +389,7 @@ export default function BottomNavigation({
             themeColor={themeColor}
           />
 
-          {/* Favorites/Recommend Toggle - Redesigned as Pill/Small Button */}
-          <button
-            onClick={toggleFavoritesMode}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-300 active:scale-95 shadow-sm border ${
-              isFavoritesMode
-                ? 'bg-red-50 border-red-200 text-red-500'
-                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <div className="relative w-5 h-5 flex items-center justify-center">
-              <AnimatePresence mode="wait">
-                {isFavoritesMode ? (
-                  <motion.div
-                    key="heart"
-                    className="absolute inset-0 flex items-center justify-center"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                  >
-                    <Heart fill="currentColor" size={20} />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="smile"
-                    className="absolute inset-0 flex items-center justify-center"
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    exit={{ scale: 0 }}
-                  >
-                    <Smile size={20} strokeWidth={2.5} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <span className="text-xs font-bold whitespace-nowrap">
-              {isFavoritesMode ? '찜한 곳' : '추천'}
-            </span>
-          </button>
-
-          {/* AI Chatbot */}
+          {/* 3. AI Chatbot */}
           <NavButton
             icon={<Bot size={24} />}
             label="AI 챗봇"
@@ -374,7 +398,7 @@ export default function BottomNavigation({
             themeColor={themeColor}
           />
 
-          {/* My Places */}
+          {/* 4. My Places */}
           <NavButton
             icon={<Menu size={24} />}
             label="내 장소"
@@ -404,11 +428,9 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 transition-all active:scale-95 px-2 ${isActive ? themeColor : 'text-gray-400 hover:text-gray-600'}`}
+      className={`flex flex-col items-center gap-1 transition-all active:scale-95 px-2 w-[72px] relative ${isActive ? themeColor : 'text-gray-400 hover:cursor-pointer'}`}
     >
-      <div
-        className={`transition-transform duration-300 ${isActive ? '-translate-y-1' : ''}`}
-      >
+      <div className="w-7 h-7 flex items-center justify-center relative">
         {icon}
       </div>
       <span
@@ -419,7 +441,7 @@ function NavButton({
       {isActive && (
         <motion.div
           layoutId="nav-dot"
-          className={`w-1 h-1 rounded-full ${themeColor.replace('text-', 'bg-')} mt-0.5`}
+          className={`absolute bottom-[10px] w-1 h-1 rounded-full ${themeColor.replace('text-', 'bg-')}`}
         />
       )}
     </button>
@@ -462,25 +484,30 @@ function SpotDetailContent({
   if (isCollapsed) {
     return (
       <div className="px-5 pb-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-gray-900 truncate">
+        <div className="flex items-center justify-between gap-3 h-14">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="text-lg font-bold text-gray-900 truncate max-w-[140px]">
               {spot.title}
             </h2>
-            <div className="text-sm text-gray-500 flex items-center gap-1">
-              {distance && (
-                <span className={`font-bold ${themeColor}`}>
+            {distance && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span
+                  className={`font-bold text-sm ${themeColor} whitespace-nowrap`}
+                >
                   {formatDistance(distance)}
                 </span>
-              )}
-              <span>·</span>
-              <span className="truncate">{spot.addr_1 || spot.addr_2}</span>
-            </div>
+              </>
+            )}
           </div>
-          {/* Minimal Route Button */}
+
+          {/* Minimized Direct Route Button */}
           <button
-            onClick={() => onRouteSelect('fast')}
-            className={`shrink-0 p-2.5 rounded-full ${themeBg} text-white shadow-md active:scale-95`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRouteSelect('fast');
+            }}
+            className={`shrink-0 w-10 h-10 rounded-full ${themeBg} text-white shadow-md active:scale-95 flex items-center justify-center`}
           >
             <Navigation size={18} fill="currentColor" />
           </button>
@@ -860,7 +887,7 @@ function MyPlacesContent({
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                         <div className="absolute inset-x-0 bottom-0 p-3 bg-linear-to-t from-black/60 via-black/30 to-transparent">
-                          <div className="text-white font-bold text-sm truncate">
+                          <div className="text-white font-normal text-sm truncate drop-shadow-md">
                             {spot.title}
                           </div>
                         </div>
