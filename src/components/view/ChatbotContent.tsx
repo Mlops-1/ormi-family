@@ -532,7 +532,10 @@ export default function ChatbotContent({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-5 pb-32">
+      <div
+        className="flex-1 overflow-y-auto p-5 pb-24 min-h-0"
+        style={{ touchAction: 'pan-y' }}
+      >
         {!selectedScenario ? (
           // 1. 시나리오 선택 화면
           <div className="space-y-3">

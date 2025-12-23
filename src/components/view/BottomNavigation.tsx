@@ -304,9 +304,8 @@ export default function BottomNavigation({
 
             {/* Content Switcher */}
             <div
-              className={`h-full ${
-                activeTab === 'chat' ? 'overflow-hidden' : 'overflow-y-auto'
-              } ${isCollapsed && isMobilePortrait ? 'overflow-hidden' : ''}`}
+              className={`h-full overflow-y-auto ${isCollapsed && isMobilePortrait ? 'overflow-hidden' : ''}`}
+              style={{ touchAction: 'pan-y' }}
             >
               {activeSpot && (
                 <SpotDetailContent
