@@ -21,6 +21,16 @@ instance.interceptors.request.use(
       config.headers['x-api-key'] = apiKey;
     }
 
+    // Disable withCredentials for external Lambda API requests
+    // (Lambda/API Gateway with Access-Control-Allow-Origin: * doesn't support credentials)
+    const url = config.url || '';
+    if (
+      url.includes('execute-api.ap-northeast-2.amazonaws.com') ||
+      url.includes('amazonaws.com')
+    ) {
+      config.withCredentials = false;
+    }
+
     return config;
   },
   (error) => {
