@@ -1,11 +1,13 @@
 import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import { TEMP_USER_ID } from '@/constants/temp_user';
+import useTmapScript from '@/hooks/useTmapScript';
 import { useQuery } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 
 export default function FavoriteMapModal({ onClose }: { onClose: () => void }) {
+  const { isLoaded } = useTmapScript();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Tmapv2.Map | null>(null);
 
@@ -22,7 +24,13 @@ export default function FavoriteMapModal({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const mapElement = mapRef.current;
-    if (!mapElement || !window.Tmapv2 || !favorites || favorites.length === 0)
+    if (
+      !isLoaded ||
+      !mapElement ||
+      !window.Tmapv2 ||
+      !favorites ||
+      favorites.length === 0
+    )
       return;
 
     // Initialize Map
@@ -91,7 +99,7 @@ export default function FavoriteMapModal({ onClose }: { onClose: () => void }) {
         mapElement.innerHTML = '';
       }
     };
-  }, [favorites]);
+  }, [isLoaded, favorites]);
 
   return (
     <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4">

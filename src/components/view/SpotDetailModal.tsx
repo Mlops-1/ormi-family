@@ -2,6 +2,7 @@ import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import AccessibilityInfo from '@/components/view/AccessibilityInfo';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import useTmapScript from '@/hooks/useTmapScript';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -345,13 +346,14 @@ function RouteMap({
   endLon: number;
   spotName: string;
 }) {
+  const { isLoaded } = useTmapScript();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Tmapv2.Map | null>(null);
   const polylineRef = useRef<Tmapv2.Polyline | null>(null);
 
   useEffect(() => {
     const mapElement = mapRef.current;
-    if (!mapElement || !window.Tmapv2) return;
+    if (!isLoaded || !mapElement || !window.Tmapv2) return;
 
     // Initialize Map
     if (!mapInstance.current) {
@@ -462,7 +464,7 @@ function RouteMap({
         mapElement.innerHTML = '';
       }
     };
-  }, [startLat, startLon, endLat, endLon, spotName]);
+  }, [isLoaded, startLat, startLon, endLat, endLon, spotName]);
 
   return (
     <div className="w-full h-full relative">
