@@ -1,7 +1,7 @@
 import { FavoritesAPI } from '@/api/favorites';
 import { UserAPI } from '@/api/user'; // Import UserAPI
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
-import Logo from '@/components/Logo';
+import Logo from '@/components/common/Logo';
 
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useQuery } from '@tanstack/react-query';
@@ -11,7 +11,7 @@ import { useState } from 'react';
 
 // Cloudscape Imports
 
-import SpotDetailModal from '@/components/SpotDetailModal';
+import SpotDetailModal from '@/components/view/SpotDetailModal';
 export const Route = createFileRoute('/user-info')({
   component: UserInfoPage,
 });

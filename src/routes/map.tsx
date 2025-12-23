@@ -1,18 +1,18 @@
-import BackgroundMap from '@/components/BackgroundMap';
-import BarrierFreeFilter from '@/components/BarrierFreeFilter';
+import BackgroundMap from '@/components/modules/BackgroundMap';
+import BarrierFreeFilter from '@/components/view/BarrierFreeFilter';
 import BottomNavigation, {
   type RouteAction,
-} from '@/components/BottomNavigation';
-import CategoryFilter from '@/components/CategoryFilter';
-import GeoLocation from '@/components/GeoLocation';
-import LoadingScreen from '@/components/LoadingScreen';
-import ModeToggle from '@/components/ModeToggle';
-import AppNotification from '@/components/Notification';
-import OnboardingOverlay from '@/components/OnboardingOverlay';
-import ProtectedRoute from '@/components/ProtectedRoute';
-import RouteNavigation from '@/components/RouteNavigation';
-import SwipeableCardList from '@/components/SwipeableCardList';
-import WeatherWidget from '@/components/WeatherWidget';
+} from '@/components/view/BottomNavigation';
+import CategoryFilter from '@/components/view/CategoryFilter';
+import GeoLocation from '@/components/modules/GeoLocation';
+import LoadingScreen from '@/components/common/LoadingScreen';
+import ModeToggle from '@/components/common/ModeToggle';
+import AppNotification from '@/components/common/Notification';
+import OnboardingOverlay from '@/components/view/OnboardingOverlay';
+import ProtectedRoute from '@/components/modules/ProtectedRoute';
+import RouteNavigation from '@/components/modules/RouteNavigation';
+import SwipeableCardList from '@/components/view/SwipeableCardList';
+import WeatherWidget from '@/components/view/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import useGeoLocation from '@/hooks/useGeoLocation';

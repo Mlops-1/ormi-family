@@ -1,8 +1,8 @@
 import { UserAPI, type UserUpdatePayload } from '@/api/user';
-import Checkbox from '@/components/Checkbox';
-import Input from '@/components/Input';
-import Logo from '@/components/Logo';
-import Notification from '@/components/Notification';
+import Checkbox from '@/components/common/Checkbox';
+import Input from '@/components/common/Input';
+import Logo from '@/components/common/Logo';
+import Notification from '@/components/common/Notification';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStore } from '@/store/userStore';

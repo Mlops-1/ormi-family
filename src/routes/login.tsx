@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import Logo from '../components/Logo';
-import Notification from '../components/Notification';
-import SocialButton from '../components/SocialButton';
+import Logo from '@/components/common/Logo';
+import Notification from '@/components/common/Notification';
+import SocialButton from '@/components/common/SocialButton';
 import { useAuth } from '../hooks/useAuth';
 
 export const Route = createFileRoute('/login')({

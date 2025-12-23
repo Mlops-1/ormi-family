@@ -32,7 +32,7 @@ import { useUserStore } from '@/store/userStore';
 import type { Coordinates } from '@/types/geo';
 import type { RoutePoint } from '@/types/map';
 
-interface Props {
+export interface RouteNavigationProps {
   onSearch: () => void;
   onManualSearch?: () => void;
   isDogMode?: boolean;
@@ -96,7 +96,7 @@ export default function RouteNavigation({
   onManualSearch,
   isDogMode = false,
   userLocation,
-}: Props) {
+}: RouteNavigationProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [showCourseSave, setShowCourseSave] = useState(false);
@@ -457,7 +457,7 @@ export default function RouteNavigation({
 
       {/* Toast Notification */}
       {notification && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[10000] pointer-events-none">
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-10000 pointer-events-none">
           <div className="bg-gray-900/95 text-white px-4 py-2.5 rounded-full shadow-lg text-sm font-medium animate-fade-in">
             {notification}
           </div>

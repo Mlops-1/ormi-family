@@ -1,5 +1,5 @@
 import motherAnimation from '@/assets/lotties/mother.json';
-import DogRiveAnimation from '@/components/DogRiveAnimation';
+import DogRiveAnimation from '@/components/view/DogRiveAnimation';
 import { useFilterStore } from '@/store/filterStore';
 import { useUserStore } from '@/store/userStore';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';

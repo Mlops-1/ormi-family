@@ -1,6 +1,6 @@
 import { ChatbotAPI } from '@/api/chatbot';
 import { FavoritesAPI } from '@/api/favorites';
-import LocationPicker from '@/components/LocationPicker';
+import LocationPicker from '@/components/view/LocationPicker';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useMapStore, type SavedLocation } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';

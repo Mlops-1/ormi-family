@@ -1,4 +1,4 @@
-import FavoriteMapModal from '@/components/FavoriteMapModal';
+import FavoriteMapModal from '@/components/view/FavoriteMapModal';
 import useTmapScript from '@/hooks/useTmapScript';
 import { createRootRoute, Outlet } from '@tanstack/react-router';
 import { useState } from 'react';

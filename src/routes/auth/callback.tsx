@@ -1,6 +1,6 @@
+import Notification from '@/components/common/Notification';
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import Notification from '../../components/Notification';
 import { authService } from '../../services/AuthService';
 
 export const Route = createFileRoute('/auth/callback')({

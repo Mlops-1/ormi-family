@@ -1,6 +1,6 @@
 import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
-import AccessibilityInfo from '@/components/AccessibilityInfo';
+import AccessibilityInfo from '@/components/view/AccessibilityInfo';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Coordinates } from '@/types/geo';
 import type { SpotCard } from '@/types/spot';

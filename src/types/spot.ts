@@ -35,6 +35,8 @@ export interface SpotCard {
   addr_1: string;
   addr_2: string;
   area_code: number;
+  cat1: string;
+  cat2: string;
   category_1: string;
   category_2: string;
   category_3: string;

@@ -1,4 +1,4 @@
-import { JejuPalettePreview } from '@/components/JejuPalettePreview';
+import { JejuPalettePreview } from '@/components/view/JejuPalettePreview';
 import { createFileRoute } from '@tanstack/react-router';
 
 export const Route = createFileRoute('/ormi-team')({

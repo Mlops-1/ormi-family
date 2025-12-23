@@ -1,6 +1,6 @@
 import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
-import AccessibilityInfo from '@/components/AccessibilityInfo';
+import AccessibilityInfo from '@/components/view/AccessibilityInfo';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { useUserStore } from '@/store/userStore';

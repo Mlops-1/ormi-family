@@ -3,9 +3,9 @@
  * Wrapper component that protects routes requiring authentication and complete profile
  */
 
+import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;

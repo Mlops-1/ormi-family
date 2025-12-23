@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
-import Button from '../../components/Button';
-import Checkbox from '../../components/Checkbox';
-import Input from '../../components/Input';
-import Notification from '../../components/Notification';
+import Button from '@/components/common/Button';
+import Checkbox from '@/components/common/Checkbox';
+import Input from '@/components/common/Input';
+import Notification from '@/components/common/Notification';
 import { useAuth } from '../../hooks/useAuth';
 import { useProfile } from '../../hooks/useProfile';
 import { AccessibilityCondition, SpotCategory } from '../../types/auth';
