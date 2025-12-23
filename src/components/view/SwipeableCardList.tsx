@@ -44,9 +44,9 @@ export default function SwipeableCardList({
   const mainTextColorClass = isPetMode
     ? 'text-ormi-green-500'
     : 'text-orange-500';
-  const _mainShadowClass = isPetMode
-    ? 'shadow-ormi-green-500/30'
-    : 'shadow-orange-500/30';
+  // const _mainShadowClass = isPetMode
+  //   ? 'shadow-ormi-green-500/30'
+  //   : 'shadow-orange-500/30';
   const fillHeartClass = isPetMode ? 'fill-ormi-green-500' : 'fill-orange-500';
   const textHeartClass = isPetMode ? 'text-ormi-green-500' : 'text-orange-500';
   const [direction, setDirection] = useState(0);

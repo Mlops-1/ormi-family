@@ -1,0 +1,101 @@
+name: Deploy to AWS S3 & CloudFront
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # 수동 배포 가능
+
+env:
+  NODE_VERSION: '20'
+  AWS_REGION: ap-northeast-2
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Node.js 설정
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      # 3. 의존성 설치
+      - name: Install Dependencies
+        run: npm ci
+
+      # 4. 환경변수 파일 생성
+      - name: Create .env file
+        run: |
+          cat << EOF > .env
+          VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}
+          VITE_TMAP_APP_KEY=${{ secrets.VITE_TMAP_APP_KEY }}
+          VITE_BACKEND_API_KEY=${{ secrets.VITE_BACKEND_API_KEY }}
+          VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
+          VITE_AWS_ACCESS_KEY_ID=${{ secrets.VITE_AWS_ACCESS_KEY_ID }}
+          VITE_AWS_SECRET_ACCESS_KEY=${{ secrets.VITE_AWS_SECRET_ACCESS_KEY }}
+          VITE_AWS_REGION=${{ env.AWS_REGION }}
+          VITE_AWS_S3_BUCKET_NAME=${{ secrets.VITE_AWS_S3_BUCKET_NAME }}
+          VITE_KINESIS_STREAM_NAME=${{ secrets.VITE_KINESIS_STREAM_NAME }}
+          VITE_COGNITO_REGION=${{ env.AWS_REGION }}
+          VITE_COGNITO_USER_POOL_ID=${{ secrets.VITE_COGNITO_USER_POOL_ID }}
+          VITE_COGNITO_CLIENT_ID=${{ secrets.VITE_COGNITO_CLIENT_ID }}
+          VITE_COGNITO_DOMAIN=${{ secrets.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_REDIRECT_SIGN_IN=${{ secrets.VITE_COGNITO_REDIRECT_SIGN_IN }}
+          VITE_COGNITO_REDIRECT_SIGN_OUT=${{ secrets.VITE_COGNITO_REDIRECT_SIGN_OUT }}
+          EOF
+
+      # 5. 프로덕션 빌드
+      - name: Build for Production
+        run: npm run build
+
+      # 6. AWS 자격 증명 설정
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 7. S3에 배포
+      - name: Deploy to S3
+        run: |
+          aws s3 sync dist/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "*.json"
+
+          # index.html과 JSON 파일은 캐시하지 않음
+          aws s3 cp dist/index.html s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+          # manifest.json 등 JSON 파일 업로드
+          find dist -name "*.json" -exec aws s3 cp {} s3://${{ secrets.S3_BUCKET_NAME }}/ \
+            --cache-control "no-cache, no-store, must-revalidate" \;
+
+      # 8. CloudFront 캐시 무효화
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      # 9. 배포 완료 알림
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Deployment Completed Successfully!"
+          echo "📦 S3 Bucket: ${{ secrets.S3_BUCKET_NAME }}"
+          echo "🌐 CloudFront Distribution: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
+          echo "⏰ Deployed at: $(date)"
