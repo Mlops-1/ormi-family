@@ -4,8 +4,21 @@ import type {
   StreamEvent,
 } from '@/types/chatbot';
 
+// In production, use direct Lambda URL; in development, use Vite proxy
+const getBaseUrl = () => {
+  const lambdaUrl = import.meta.env.VITE_CHATBOT_API_URL;
+  // If Lambda URL is set and we're in production, use it directly
+  if (lambdaUrl && import.meta.env.PROD) {
+    return `${lambdaUrl}/bot/agent`;
+  }
+  // In development, use Vite proxy
+  return '/bot/agent';
+};
+
 export class ChatbotAPI {
-  private static readonly BASE_URL = '/bot/agent';
+  private static get BASE_URL() {
+    return getBaseUrl();
+  }
 
   /**
    * 일반 POST 요청 (스트리밍 없음)
