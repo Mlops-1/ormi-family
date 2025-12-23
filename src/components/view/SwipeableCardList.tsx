@@ -599,7 +599,7 @@ export default function SwipeableCardList({
               </div>
 
               {/* Bottom Fixed Buttons */}
-              <div className="absolute bottom-18 left-0 right-0 p-4 bg-white border-t border-gray-100 pb-6 rounded-t-3xl">
+              <div className="absolute bottom-18 left-0 right-0 p-4 bg-white border-t border-gray-100 pb-6 rounded-t-3xl z-30 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {

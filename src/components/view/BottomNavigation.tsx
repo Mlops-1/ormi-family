@@ -344,6 +344,7 @@ export default function BottomNavigation({
                   onRecommendationReceived={(result) => {
                     console.log('Recommendation:', result);
                   }}
+                  onClose={() => setActiveTab(null)}
                 />
               )}
               {activeTab === 'my-places' && (
@@ -1325,7 +1326,7 @@ function ProfileTabContent({
           type="text"
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
-          className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 ${themeRing} transition-all`}
+          className={`w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 ${themeRing} transition-all`}
           placeholder="닉네임을 입력하세요"
         />
       </div>

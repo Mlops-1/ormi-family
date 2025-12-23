@@ -20,7 +20,6 @@ import {
   Heart,
   MapPin,
   Search,
-  Terminal,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -29,6 +28,7 @@ interface Props {
   themeColor: string;
   userLocation?: { lat: number; lon: number };
   onRecommendationReceived?: (result: RecommendResponse) => void;
+  onClose?: () => void;
 }
 
 interface ScenarioOption {
@@ -88,6 +88,7 @@ export default function ChatbotContent({
   themeColor: _themeColor,
   userLocation,
   onRecommendationReceived,
+  onClose,
 }: Props) {
   const { mode, userId } = useUserStore();
   const { savedLocations, manualLocation } = useMapStore();
@@ -529,6 +530,17 @@ export default function ChatbotContent({
             </p>
           </div>
         </div>
+
+        {/* Close Button */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            aria-label="닫기"
+          >
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -743,37 +755,66 @@ export default function ChatbotContent({
             )}
           </div>
         ) : isLoading ? (
-          // 4. 로딩 (로그 스트림) 화면 - Terminal Style
-          <div className="flex flex-col min-h-[300px] bg-slate-900 rounded-xl p-4 overflow-hidden relative font-mono text-xs shadow-inner">
-            {/* Terminal Header */}
-            <div className="flex items-center gap-2 mb-3 border-b border-slate-700 pb-2 shrink-0">
-              <Terminal className="w-4 h-4 text-green-400" />
-              <span className="text-green-400 font-bold">AI Agent Stream</span>
-              <span className="animate-pulse ml-auto text-green-400 text-[10px]">
-                ● LIVE
-              </span>
+          // 4. 로딩 화면 - 돌돌이 스피너 형식
+          <div className="flex flex-col items-center justify-center min-h-[300px] relative">
+            {/* Spinner Container */}
+            <div className="relative w-24 h-24 mb-6">
+              {/* Outer spinning ring */}
+              <div
+                className={`absolute inset-0 rounded-full border-4 border-transparent ${isPetMode ? 'border-t-ormi-green-500' : 'border-t-orange-500'} animate-spin`}
+              />
+              {/* Middle spinning ring (opposite direction) */}
+              <div
+                className={`absolute inset-2 rounded-full border-4 border-transparent ${isPetMode ? 'border-b-ormi-green-300' : 'border-b-orange-300'} animate-spin`}
+                style={{
+                  animationDirection: 'reverse',
+                  animationDuration: '1.5s',
+                }}
+              />
+              {/* Inner spinning ring */}
+              <div
+                className={`absolute inset-4 rounded-full border-4 border-transparent ${isPetMode ? 'border-t-ormi-green-400' : 'border-t-orange-400'} animate-spin`}
+                style={{ animationDuration: '0.8s' }}
+              />
+              {/* Center icon */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Bot
+                  className={`w-8 h-8 ${mainTextColorClass} animate-pulse`}
+                />
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-1.5 scrollbar-hide text-green-300 font-medium">
-              {logs.length === 0 && (
-                <div className="text-slate-500 italic">대기 중...</div>
-              )}
-              {logs.map((log, index) => (
+            {/* Status Message */}
+            <div className="text-center">
+              <h3 className={`font-bold text-lg ${mainTextColorClass} mb-2`}>
+                AI가 분석 중이에요
+              </h3>
+              <p className="text-gray-500 text-sm mb-4">잠시만 기다려 주세요</p>
+
+              {/* Current log message */}
+              {logs.length > 0 && (
                 <div
-                  key={index}
-                  className="break-all leading-relaxed flex gap-2"
+                  className={`px-4 py-2 rounded-full ${isPetMode ? 'bg-ormi-green-50' : 'bg-orange-50'} max-w-xs mx-auto`}
                 >
-                  <span className="text-green-500 opacity-70 shrink-0">$</span>
-                  <span>{log}</span>
+                  <p
+                    className={`text-xs ${mainTextColorClass} font-medium truncate`}
+                  >
+                    {logs[logs.length - 1]}
+                  </p>
                 </div>
-              ))}
-              <div ref={logsEndRef} />
+              )}
             </div>
 
-            {/* Decor */}
-            <div
-              className={`absolute bottom-0 left-0 w-full h-1 ${mainBgColorClass} opacity-50`}
-            />
+            {/* Decorative dots animation */}
+            <div className="flex gap-1.5 mt-6">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className={`w-2 h-2 rounded-full ${mainBgColorClass} animate-bounce`}
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
           </div>
         ) : recommendationResult ? (
           // 5. 결과 화면 (추천 장소 카드 리스트)

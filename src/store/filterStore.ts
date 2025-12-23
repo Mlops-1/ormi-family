@@ -58,6 +58,34 @@ export const INITIAL_BARRIER_IDS: AccessibilityType[] = [
   'parking',
 ];
 
+// Toddler Mode: yes_kids at top
+export const TODDLER_BARRIER_ORDER: AccessibilityType[] = [
+  'yes_kids',
+  'stroller',
+  'lactation_room',
+  'baby_spare_chair',
+  'elevator',
+  'yes_pet',
+  'wheelchair',
+  'help_dog',
+  'route',
+  'parking',
+];
+
+// Pet Mode: yes_pet at top
+export const PET_BARRIER_ORDER: AccessibilityType[] = [
+  'yes_pet',
+  'help_dog',
+  'yes_kids',
+  'wheelchair',
+  'stroller',
+  'lactation_room',
+  'baby_spare_chair',
+  'route',
+  'elevator',
+  'parking',
+];
+
 // Initial Category Options
 export const TODDLER_CATEGORY_IDS: SpotCategoryType[] = [
   SpotCategory.TOUR_SPOT,
@@ -190,40 +218,33 @@ export const useFilterStore = create<FilterStore>()(
           });
         } else {
           // Initialize for the first time
-          let barrierPriority: AccessibilityType[] = [];
+          let barrierOrder: AccessibilityType[] = [];
           let initialSelectedBarriers: AccessibilityType[] = [];
-
-          // Set Categories based on mode logic
           let initialCategoryIds: SpotCategoryType[] = [];
 
           if (mode === 'toddler') {
-            barrierPriority = [
-              'yes_kids', // New Top priority
+            // Toddler mode: yes_kids at top, ALL categories enabled
+            barrierOrder = TODDLER_BARRIER_ORDER;
+            initialSelectedBarriers = [
+              'yes_kids',
               'stroller',
               'lactation_room',
               'baby_spare_chair',
               'elevator',
             ];
-            initialSelectedBarriers = [...barrierPriority];
-            initialCategoryIds = TODDLER_CATEGORY_IDS;
+            // Enable ALL category filters for toddler mode
+            initialCategoryIds = INITIAL_CATEGORY_IDS;
           } else {
-            barrierPriority = [
-              'yes_pet', // New Top priority
-              'help_dog',
-            ];
-            initialSelectedBarriers = [...barrierPriority];
+            // Pet mode: yes_pet at top
+            barrierOrder = PET_BARRIER_ORDER;
+            initialSelectedBarriers = ['yes_pet', 'help_dog'];
             initialCategoryIds = PET_CATEGORY_IDS;
           }
-
-          const restBarriers = INITIAL_BARRIER_IDS.filter(
-            (id) => !barrierPriority.includes(id)
-          );
-          const newBarrierOrder = [...barrierPriority, ...restBarriers];
 
           set({
             selectedCategoryIds: initialCategoryIds,
             selectedBarrierIds: initialSelectedBarriers,
-            barrierOrderedIds: newBarrierOrder,
+            barrierOrderedIds: barrierOrder,
             themeFilters: updatedThemeFilters,
             isCategoryOpen: false,
             isBarrierOpen: false,
