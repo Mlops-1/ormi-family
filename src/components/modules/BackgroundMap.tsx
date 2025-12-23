@@ -1,5 +1,6 @@
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
 import strollerAnimation from '@/assets/lotties/baby_care.json';
+import festIconAnimation from '@/assets/lotties/fire_works_marker.json';
 import walkingDogAnimation from '@/assets/lotties/walking_dog.json';
 import useTmapScript from '@/hooks/useTmapScript';
 import type { SavedLocation } from '@/store/mapStore';
@@ -13,6 +14,11 @@ import {
 import Lottie from 'lottie-react';
 import { useEffect, useRef, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+
+interface FestivalContent {
+  st_dt?: string;
+  ed_dt?: string;
+}
 
 interface Props {
   spots: SpotCard[];
@@ -89,6 +95,7 @@ export default function BackgroundMap({
   const routeEndMarkerRef = useRef<Tmapv2.Marker | null>(null);
   const routeWaypointMarkersRef = useRef<Tmapv2.Marker[]>([]);
   const routePolylineRef = useRef<Tmapv2.Polyline | null>(null);
+  const decorationRootsRef = useRef<Map<string | number, Root>>(new Map());
 
   const onMapInteractionRef = useRef(onMapInteraction);
   const onMarkerClickRef = useRef(onMarkerClick);
@@ -102,10 +109,12 @@ export default function BackgroundMap({
 
   // Initialize Map
   useEffect(() => {
-    if (isLoaded && mapRef.current && !mapInstance.current) {
+    const mapContainer = mapRef.current;
+
+    if (isLoaded && mapContainer && !mapInstance.current) {
       if (!window.Tmapv2) return;
 
-      const map = new window.Tmapv2.Map(mapRef.current, {
+      const map = new window.Tmapv2.Map(mapContainer, {
         center: new window.Tmapv2.LatLng(33.3846, 126.5535),
         width: '100%',
         height: '100%',
@@ -128,7 +137,50 @@ export default function BackgroundMap({
       });
 
       mapInstance.current = map;
+
+      // Fix for TMap drag issues in mobile dev tools
+      // The issue is that browser's default touch gestures interfere with TMap's custom drag handling
+      // We need to ensure the map container properly captures touch events
+      // Ensure touch-action is set (also set in render, but belt & suspenders)
+      mapContainer.style.touchAction = 'none';
+
+      // Add non-passive touch listener to allow proper touch event handling
+      const handleTouchMove = (e: TouchEvent) => {
+        // Only prevent default if the touch is on the map itself (not on UI overlays)
+        const target = e.target as HTMLElement;
+        const isMapElement =
+          mapContainer.contains(target) &&
+          !target.closest('[data-ui-overlay]') &&
+          !target.closest('button') &&
+          !target.closest('input');
+
+        if (isMapElement && e.cancelable) {
+          // Don't prevent default - let TMap handle the event
+          // But we need to stop propagation to parent elements that might interfere
+          e.stopPropagation();
+        }
+      };
+
+      mapContainer.addEventListener('touchmove', handleTouchMove, {
+        passive: false,
+      });
+
+      // Store cleanup function
+      (
+        mapContainer as HTMLElement & { _touchCleanup?: () => void }
+      )._touchCleanup = () => {
+        mapContainer.removeEventListener('touchmove', handleTouchMove);
+      };
     }
+
+    return () => {
+      if (mapContainer) {
+        const cleanup = (
+          mapContainer as HTMLElement & { _touchCleanup?: () => void }
+        )._touchCleanup;
+        if (cleanup) cleanup();
+      }
+    };
   }, [isLoaded]);
 
   // Handle Map Mode Actions
@@ -165,26 +217,96 @@ export default function BackgroundMap({
   useEffect(() => {
     if (!mapInstance.current || !window.Tmapv2) return;
 
-    spotMarkersRef.current.forEach((m) => m.setMap(null));
+    // Cleanup existing markers and decorations
+    spotMarkersRef.current.forEach((m) => {
+      m.setMap(null);
+    });
     spotMarkersRef.current = [];
 
+    decorationRootsRef.current.forEach((root) => {
+      setTimeout(() => root.unmount(), 0);
+    });
+    decorationRootsRef.current.clear();
+
     spots.forEach((spot, index) => {
+      // 1. Check Festival Status
+      const isFestival =
+        spot.category_1 === 'FESTIVAL' ||
+        spot.cat1 === 'EVENT' ||
+        spot.cat2 === 'FESTIVAL';
+
+      let isOnAir = false;
+      let festivalData: FestivalContent | null = null;
+      if (isFestival && spot.festivalcontents) {
+        try {
+          const fd = JSON.parse(spot.festivalcontents);
+          festivalData = fd;
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+          // Show fireworks if it's currently ongoing or if end date is not available
+          if (!fd.ed_dt || todayStr <= fd.ed_dt) isOnAir = true;
+        } catch {
+          // ignore
+        }
+      }
+
+      const finalHtml = createSpotMarker(
+        spot.first_image || fallbackImage,
+        false,
+        isOnAir ? 'purple' : markerTheme,
+        spot.content_id
+      );
+
       const marker = new window.Tmapv2.Marker({
         position: new window.Tmapv2.LatLng(spot.lat, spot.lon),
         map: mapInstance.current!,
-        iconHTML: createSpotMarker(
-          spot.first_image || fallbackImage,
-          false,
-          markerTheme
-        ),
+        iconHTML: finalHtml,
         offset: new window.Tmapv2.Point(0, 0), // HTML transform handles centering
+        zIndex: isOnAir ? 150 : 20,
       });
+
+      // Mount static decoration if isOnAir
+      if (isOnAir) {
+        const mountDecoration = (attempts = 0) => {
+          const container = document.getElementById(
+            `fest-icon-${spot.content_id}`
+          );
+          if (container) {
+            if (decorationRootsRef.current.has(spot.content_id)) return;
+            try {
+              const root = createRoot(container);
+              decorationRootsRef.current.set(spot.content_id, root);
+              root.render(
+                <Lottie
+                  animationData={festIconAnimation}
+                  autoplay={true}
+                  loop={true}
+                  style={{ width: '100%', height: '100%' }}
+                />
+              );
+            } catch (e) {
+              console.error('Failed to mount fest deco:', e);
+            }
+          } else if (attempts < 20) {
+            setTimeout(() => mountDecoration(attempts + 1), 100);
+          }
+        };
+        mountDecoration();
+      }
 
       const handleMarkerClick = () => {
         ignoreMapClickRef.current = true;
         setTimeout(() => {
           ignoreMapClickRef.current = false;
         }, 200);
+
+        // Log festival status
+        console.log('Marker clicked:', {
+          title: spot.title,
+          isFest: isOnAir,
+          festivalData: festivalData,
+        });
+
         onMarkerClickRef.current?.(index);
       };
 
@@ -202,14 +324,63 @@ export default function BackgroundMap({
     spotMarkersRef.current.forEach((marker, idx) => {
       const spot = spots[idx];
       const isActive = idx === currentSpotIndex;
+
+      // Re-evaluate isOnAir for active state update
+      const isFestival =
+        spot.category_1 === 'FESTIVAL' ||
+        spot.cat1 === 'EVENT' ||
+        spot.cat2 === 'FESTIVAL';
+      let isOnAir = false;
+      if (isFestival && spot.festivalcontents) {
+        try {
+          const fd = JSON.parse(spot.festivalcontents);
+          const today = new Date();
+          const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+          if (!fd.ed_dt || todayStr <= fd.ed_dt) isOnAir = true;
+        } catch {
+          /* ignore */
+        }
+      }
+
       if (typeof marker.setIconHTML === 'function') {
         marker.setIconHTML(
           createSpotMarker(
             spot.first_image || fallbackImage,
             isActive,
-            markerTheme
+            isOnAir ? 'purple' : markerTheme,
+            spot.content_id
           )
         );
+
+        // Re-mount decoration if theme is purple
+        if (isOnAir) {
+          const mountDeo = (attempts = 0) => {
+            const container = document.getElementById(
+              `fest-icon-${spot.content_id}`
+            );
+            if (container) {
+              // Always re-mount because setIconHTML clears DOM
+              try {
+                // If old root exists from initial load, it might be stale?
+                // Actually setIconHTML destroys the DOM element anyway.
+                const root = createRoot(container);
+                root.render(
+                  <Lottie
+                    animationData={festIconAnimation}
+                    autoplay={true}
+                    loop={true}
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                );
+              } catch (e) {
+                /* ignore */
+              }
+            } else if (attempts < 10) {
+              setTimeout(() => mountDeo(attempts + 1), 100);
+            }
+          };
+          mountDeo();
+        }
       }
       if (isActive && typeof marker.setZIndex === 'function') {
         marker.setZIndex(100);
@@ -666,7 +837,7 @@ export default function BackgroundMap({
       id="map_div"
       ref={mapRef}
       className={`absolute inset-0 w-full h-full pointer-events-auto ${isMapMode ? 'z-10' : 'z-0'}`}
-      style={{ touchAction: 'manipulation' }}
+      style={{ touchAction: 'none' }}
     />
   );
 }

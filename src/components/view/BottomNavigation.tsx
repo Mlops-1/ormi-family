@@ -1,6 +1,13 @@
 import { FavoritesAPI } from '@/api/favorites';
+import {
+  UserAPI,
+  type ChildAgeGroup,
+  type StrollerYN,
+  type TravelStyle,
+  type UserUpdatePayload,
+} from '@/api/user';
 import heartIcon from '@/assets/lotties/heart_icon.json';
-import { TEMP_USER_ID } from '@/constants/temp_user';
+import { AVAILABLE_USER_IDS } from '@/constants/temp_user';
 import { useBottomFilterStore } from '@/store/bottomFilterStore';
 import { useCourseHistoryStore } from '@/store/courseHistoryStore';
 import { useMapStore, type SavedLocation } from '@/store/mapStore';
@@ -18,13 +25,17 @@ import {
 import Lottie, { type LottieRefCurrentProps } from 'lottie-react';
 import {
   Bot,
+  Check,
   Flag,
   Heart,
   Info,
+  Loader2,
   MapPin,
   Menu,
   Navigation,
   Plus,
+  Save,
+  User,
   X,
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -551,14 +562,30 @@ function SpotDetailContent({
               .filter((cat): cat is string => !!cat)
               .filter((cat, idx, self) => self.indexOf(cat) === idx) // Deduplicate
               .slice(0, 3)
-              .map((cat, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600"
-                >
-                  {cat}
-                </span>
-              ))}
+              .map((cat, idx) => {
+                let label = cat;
+                if (
+                  (cat === 'FESTIVAL' || cat === 'EVENT') &&
+                  spot.festivalcontents
+                ) {
+                  try {
+                    const fd = JSON.parse(spot.festivalcontents);
+                    const format = (d: string) =>
+                      `${d.substring(4, 6)}.${d.substring(6, 8)}`;
+                    label = `${cat} ${format(fd.st_dt)}~${format(fd.ed_dt)}`;
+                  } catch {
+                    // ignore
+                  }
+                }
+                return (
+                  <span
+                    key={idx}
+                    className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600"
+                  >
+                    {label}
+                  </span>
+                );
+              })}
           </div>
 
           <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
@@ -779,9 +806,18 @@ function MyPlacesContent({
 }: {
   onSpotClick: (spot: SpotCard) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'places' | 'courses'>('places');
+  const [activeTab, setActiveTab] = useState<'places' | 'courses' | 'profile'>(
+    'places'
+  );
   const [favorites, setFavorites] = useState<FavoriteSpot[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { userId, setUserId, mode } = useUserStore();
+
+  const themeColor = mode === 'pet' ? 'text-ormi-green-600' : 'text-orange-600';
+  const themeBg = mode === 'pet' ? 'bg-ormi-green-500' : 'bg-orange-500';
+  const themeRing = mode === 'pet' ? 'ring-ormi-green-500' : 'ring-orange-500';
+  const themeBorder =
+    mode === 'pet' ? 'border-ormi-green-500' : 'border-orange-500';
 
   useEffect(() => {
     if (activeTab === 'places') {
@@ -789,7 +825,7 @@ function MyPlacesContent({
         setIsLoading(true);
         try {
           const res = await FavoritesAPI.getFavorites({
-            user_id: TEMP_USER_ID,
+            user_id: userId,
           });
           // Sort by favorite_created_at descending (newest first)
           const sorted = (res.data || []).sort((a, b) => {
@@ -806,7 +842,7 @@ function MyPlacesContent({
       };
       load();
     }
-  }, [activeTab]);
+  }, [activeTab, userId]);
 
   // Group favorites by date
   const groupedFavorites = favorites.reduce(
@@ -821,18 +857,15 @@ function MyPlacesContent({
     {} as Record<string, FavoriteSpot[]>
   );
 
-  // Preserve order of groups (Today -> Yesterday -> etc) requires manual sorting of keys if they weren't inserted in order.
-  // Since we sorted spots by date desc, keys *should* be created in order of appearance (Newest -> Oldest).
-  // Object.keys order is generally insertion order for strings in modern JS, but let's be safe.
-  const groupKeys = Object.keys(groupedFavorites); // Detailed sorting if needed, but iteration usually follows insertion for non-integer keys.
+  const groupKeys = Object.keys(groupedFavorites);
 
   return (
     <div className="flex flex-col h-full">
       {/* Tabs Header */}
-      <div className="flex border-b border-gray-100 px-6 pt-2">
+      <div className="flex border-b border-gray-100 px-4 pt-2">
         <button
           onClick={() => setActiveTab('places')}
-          className={`px-4 py-3 text-sm font-bold relative transition-colors ${
+          className={`px-3 py-3 text-sm font-bold relative transition-colors ${
             activeTab === 'places' ? 'text-gray-900' : 'text-gray-400'
           }`}
         >
@@ -840,13 +873,13 @@ function MyPlacesContent({
           {activeTab === 'places' && (
             <motion.div
               layoutId="myplaces-tab"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+              className={`absolute bottom-0 left-0 right-0 h-0.5 ${themeBg}`}
             />
           )}
         </button>
         <button
           onClick={() => setActiveTab('courses')}
-          className={`px-4 py-3 text-sm font-bold relative transition-colors ${
+          className={`px-3 py-3 text-sm font-bold relative transition-colors ${
             activeTab === 'courses' ? 'text-gray-900' : 'text-gray-400'
           }`}
         >
@@ -854,7 +887,22 @@ function MyPlacesContent({
           {activeTab === 'courses' && (
             <motion.div
               layoutId="myplaces-tab"
-              className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-900"
+              className={`absolute bottom-0 left-0 right-0 h-0.5 ${themeBg}`}
+            />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-3 py-3 text-sm font-bold relative transition-colors flex items-center gap-1.5 ${
+            activeTab === 'profile' ? 'text-gray-900' : 'text-gray-400'
+          }`}
+        >
+          <User size={14} />
+          프로필
+          {activeTab === 'profile' && (
+            <motion.div
+              layoutId="myplaces-tab"
+              className={`absolute bottom-0 left-0 right-0 h-0.5 ${themeBg}`}
             />
           )}
         </button>
@@ -907,8 +955,17 @@ function MyPlacesContent({
               ))}
             </div>
           )
-        ) : (
+        ) : activeTab === 'courses' ? (
           <CoursesTabContent />
+        ) : (
+          <ProfileTabContent
+            userId={userId}
+            setUserId={setUserId}
+            themeColor={themeColor}
+            themeBg={themeBg}
+            themeRing={themeRing}
+            themeBorder={themeBorder}
+          />
         )}
       </div>
     </div>
@@ -1085,6 +1142,339 @@ function CoursesTabContent() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// --- Profile Tab Content ---
+interface ProfileTabContentProps {
+  userId: number;
+  setUserId: (userId: number) => void;
+  themeColor: string;
+  themeBg: string;
+  themeRing: string;
+  themeBorder: string;
+}
+
+function ProfileTabContent({
+  userId,
+  setUserId,
+  themeColor: _themeColor,
+  themeBg,
+  themeRing,
+  themeBorder: _themeBorder,
+}: ProfileTabContentProps) {
+  // Profile data state
+  const [nickname, setNickname] = useState('');
+  const [withChild, setWithChild] = useState(false);
+  const [withPet, setWithPet] = useState(false);
+  const [childAgeGroup, setChildAgeGroup] = useState<ChildAgeGroup | ''>('');
+  const [strollerYn, setStrollerYn] = useState<StrollerYN | ''>('');
+  const [travelStyle, setTravelStyle] = useState<TravelStyle | ''>('');
+
+  // UI state
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState(userId);
+
+  // Load profile data
+  const loadProfile = async (id: number) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await UserAPI.getUserInfo(id);
+      const userData = Array.isArray(res.data) ? res.data[0] : res.data;
+      if (userData) {
+        setNickname(userData.user_name || '');
+        setWithChild(userData.with_child === 1);
+        setWithPet(userData.with_pet === 1);
+        setChildAgeGroup(userData.child_age_group || '');
+        setStrollerYn(userData.stroller_yn || '');
+        setTravelStyle(userData.travel_style || '');
+      }
+    } catch (e) {
+      console.error('Failed to load profile:', e);
+      setError('프로필을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const effectiveUserId = userId || 1;
+    loadProfile(effectiveUserId);
+    setPendingUserId(effectiveUserId);
+  }, [userId]);
+
+  // Handle save
+  const handleSave = async () => {
+    setIsSaving(true);
+    setError(null);
+    setSaveSuccess(false);
+
+    try {
+      const payload: UserUpdatePayload = {
+        user_name: nickname,
+        with_child: withChild ? 1 : 0,
+        with_pet: withPet ? 1 : 0,
+      };
+
+      if (childAgeGroup) payload.child_age_group = childAgeGroup;
+      if (strollerYn) payload.stroller_yn = strollerYn;
+      if (travelStyle) payload.travel_style = travelStyle;
+
+      // If user ID changed, update it first
+      if (pendingUserId !== userId) {
+        setUserId(pendingUserId);
+      }
+
+      await UserAPI.updateUser(pendingUserId, payload);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (e) {
+      console.error('Failed to save profile:', e);
+      setError('프로필 저장에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle user ID change
+  const handleUserIdChange = (newId: number) => {
+    setPendingUserId(newId);
+  };
+
+  // Apply pending user ID
+  const applyUserId = () => {
+    if (pendingUserId !== userId) {
+      setUserId(pendingUserId);
+    }
+  };
+
+  // Child age group options
+  const childAgeOptions: { value: ChildAgeGroup; label: string }[] = [
+    { value: 'INFANT', label: '영유아 (0~2세)' },
+    { value: 'TODDLER', label: '유아 (3~5세)' },
+    { value: 'KID', label: '초등 (6세 이상)' },
+  ];
+
+  // Travel style options
+  const travelStyleOptions: { value: TravelStyle; label: string }[] = [
+    { value: 'ACTIVE', label: '액티브' },
+    { value: 'RELAX', label: '휴식' },
+    { value: 'EDU', label: '교육' },
+  ];
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+        <Loader2 size={32} className="animate-spin mb-3" />
+        <span>프로필 로딩 중...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Dev User Selector */}
+      <div className="p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+            🔧 개발용 유저 선택
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {AVAILABLE_USER_IDS.map((id) => (
+            <button
+              key={id}
+              onClick={() => handleUserIdChange(id)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                pendingUserId === id
+                  ? `${themeBg} text-white ring-2 ${themeRing} ring-offset-2`
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              유저 {id}
+            </button>
+          ))}
+        </div>
+        {pendingUserId !== userId && (
+          <button
+            onClick={applyUserId}
+            className={`mt-3 w-full py-2 ${themeBg} text-white text-sm font-bold rounded-lg active:scale-95 transition-all`}
+          >
+            유저 {pendingUserId}(으)로 변경
+          </button>
+        )}
+      </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Nickname */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">
+          닉네임
+        </label>
+        <input
+          type="text"
+          value={nickname}
+          onChange={(e) => setNickname(e.target.value)}
+          className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 ${themeRing} transition-all`}
+          placeholder="닉네임을 입력하세요"
+        />
+      </div>
+
+      {/* With Child Toggle */}
+      <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">👶</span>
+          <span className="font-bold text-gray-900">아이 동반</span>
+        </div>
+        <button
+          onClick={() => setWithChild(!withChild)}
+          className={`relative w-14 h-8 rounded-full transition-colors ${
+            withChild ? themeBg : 'bg-gray-200'
+          }`}
+        >
+          <div
+            className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+              withChild ? 'translate-x-6' : ''
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Child Age Group - Only show if with child */}
+      {withChild && (
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            아이 연령대
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {childAgeOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() =>
+                  setChildAgeGroup(childAgeGroup === opt.value ? '' : opt.value)
+                }
+                className={`py-3 px-2 rounded-xl text-xs font-bold transition-all ${
+                  childAgeGroup === opt.value
+                    ? `${themeBg} text-white`
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Stroller - Only show if with child */}
+      {withChild && (
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">
+            유모차 사용
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setStrollerYn(strollerYn === 'Y' ? '' : 'Y')}
+              className={`py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                strollerYn === 'Y'
+                  ? `${themeBg} text-white`
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              <span>🛒</span> 예
+            </button>
+            <button
+              onClick={() => setStrollerYn(strollerYn === 'N' ? '' : 'N')}
+              className={`py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                strollerYn === 'N'
+                  ? `${themeBg} text-white`
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              아니오
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* With Pet Toggle */}
+      <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🐕</span>
+          <span className="font-bold text-gray-900">반려동물 동반</span>
+        </div>
+        <button
+          onClick={() => setWithPet(!withPet)}
+          className={`relative w-14 h-8 rounded-full transition-colors ${
+            withPet ? themeBg : 'bg-gray-200'
+          }`}
+        >
+          <div
+            className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${
+              withPet ? 'translate-x-6' : ''
+            }`}
+          />
+        </button>
+      </div>
+
+      {/* Travel Style */}
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">
+          여행 스타일
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {travelStyleOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() =>
+                setTravelStyle(travelStyle === opt.value ? '' : opt.value)
+              }
+              className={`py-3 px-2 rounded-xl text-sm font-bold transition-all ${
+                travelStyle === opt.value
+                  ? `${themeBg} text-white`
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <button
+        onClick={handleSave}
+        disabled={isSaving}
+        className={`w-full py-4 ${themeBg} text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50`}
+      >
+        {isSaving ? (
+          <>
+            <Loader2 size={20} className="animate-spin" />
+            저장 중...
+          </>
+        ) : saveSuccess ? (
+          <>
+            <Check size={20} />
+            저장 완료!
+          </>
+        ) : (
+          <>
+            <Save size={20} />
+            수정 완료
+          </>
+        )}
+      </button>
     </div>
   );
 }

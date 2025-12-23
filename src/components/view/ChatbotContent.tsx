@@ -2,6 +2,7 @@ import { ChatbotAPI } from '@/api/chatbot';
 import { FavoritesAPI } from '@/api/favorites';
 import LocationPicker from '@/components/view/LocationPicker';
 import { TEMP_USER_ID } from '@/constants/temp_user';
+import { SPOT_QUERY } from '@/queries/spotQuery';
 import { useMapStore, type SavedLocation } from '@/store/mapStore';
 import { useUserStore } from '@/store/userStore';
 import type {
@@ -15,7 +16,7 @@ import type { FavoriteSpot } from '@/types/spot';
 import {
   ArrowLeft,
   Bot,
-  ChevronRight,
+  ChevronRight, // Ensure this is kept
   Heart,
   MapPin,
   Search,
@@ -95,6 +96,12 @@ export default function ChatbotContent({
   // Use manualLocation (Reference Location) if available, otherwise fallback to userLocation (Current Location)
   const effectiveUserLocation = manualLocation || userLocation;
 
+  const { data: transportSpots } = SPOT_QUERY.useGetTransportSpots(
+    userId ? Number(userId) : TEMP_USER_ID,
+    effectiveUserLocation?.lat || 0,
+    effectiveUserLocation?.lon || 0
+  );
+
   const [selectedScenario, setSelectedScenario] = useState<PromptType | null>(
     null
   );
@@ -142,7 +149,7 @@ export default function ChatbotContent({
   }, [userId]);
 
   useEffect(() => {
-    fetchFavorites();
+    void fetchFavorites();
 
     const handleRefresh = () => {
       console.log('[FAVORITE] Refresh event received in Chatbot');
@@ -383,7 +390,7 @@ export default function ChatbotContent({
       start_lat: activeStart.lat,
       start_lon: activeStart.lon,
       start_datetime: new Date().toISOString(),
-      start_name: activeStart.name,
+      // start_name: activeStart.name,
     };
 
     const scenarioOption = SCENARIOS.find((s) => s.type === scenario);
@@ -706,6 +713,31 @@ export default function ChatbotContent({
                 <ChevronRight className="w-4 h-4" />
               </div>
             </button>
+
+            {transportSpots && transportSpots.length > 0 && (
+              <div className="mt-1">
+                <div className="text-xs font-bold text-gray-400 mb-2 px-1">
+                  주요 거점/교통편
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                  {transportSpots.map((spot) => (
+                    <button
+                      key={spot.content_id}
+                      onClick={() =>
+                        handleDestinationConfirm(
+                          { lat: spot.lat, lon: spot.lon },
+                          spot.title
+                        )
+                      }
+                      className="shrink-0 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 hover:border-orange-500 hover:bg-orange-50 hover:text-orange-600 transition-all shadow-sm active:scale-95 flex items-center gap-1.5"
+                    >
+                      <span className="text-lg">✈️</span>
+                      {spot.title}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : isLoading ? (
           // 4. 로딩 (로그 스트림) 화면 - Terminal Style

@@ -1,3 +1,5 @@
+import type { ChildAgeGroup, StrollerYN, TravelStyle } from '@/api/user';
+import { getSavedUserId, saveUserId } from '@/constants/temp_user';
 import { SpotCategory, type CognitoUser, type UserProfile } from '@/types/auth';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -11,12 +13,16 @@ export interface UserFormState {
   withPet: boolean;
   hasStroller: boolean;
   selectedCategories: SpotCategory[];
+  // New profile fields
+  childAgeGroup?: ChildAgeGroup;
+  strollerYn?: StrollerYN;
+  travelStyle?: TravelStyle;
 }
 
 interface UserState {
   user: CognitoUser | null;
   profile: UserProfile | null;
-  userId: number | null;
+  userId: number;
   mode: 'toddler' | 'pet'; // Frontend uses 'toddler', converted to 'baby' for API
 
   // Form State for User Profile Edit
@@ -25,7 +31,7 @@ interface UserState {
   // Actions
   setUser: (user: CognitoUser | null) => void;
   setProfile: (profile: UserProfile | null) => void;
-  setUserId: (userId: number | null) => void;
+  setUserId: (userId: number) => void;
   setMode: (mode: 'toddler' | 'pet') => void;
   logout: () => void;
 
@@ -43,6 +49,9 @@ const INITIAL_FORM_STATE: UserFormState = {
   withPet: false,
   hasStroller: false,
   selectedCategories: [],
+  childAgeGroup: undefined,
+  strollerYn: undefined,
+  travelStyle: undefined,
 };
 
 export const useUserStore = create<UserState>()(
@@ -50,13 +59,16 @@ export const useUserStore = create<UserState>()(
     (set) => ({
       user: null,
       profile: null,
-      userId: null,
+      userId: getSavedUserId(),
       mode: 'toddler', // Default
       editForm: INITIAL_FORM_STATE,
 
       setUser: (user) => set({ user }),
       setProfile: (profile) => set({ profile }),
-      setUserId: (userId) => set({ userId }),
+      setUserId: (userId) => {
+        saveUserId(userId);
+        set({ userId });
+      },
       setMode: (mode) => {
         set({ mode });
       },
@@ -64,7 +76,7 @@ export const useUserStore = create<UserState>()(
         set({
           user: null,
           profile: null,
-          userId: null,
+          userId: 1,
           editForm: INITIAL_FORM_STATE,
         }),
 

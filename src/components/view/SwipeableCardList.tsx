@@ -1,5 +1,6 @@
 import { FavoritesAPI } from '@/api/favorites';
 import fallbackImage from '@/assets/images/fallback_spot.jpg';
+import fireworksAnimation from '@/assets/lotties/fireworks.json';
 import AccessibilityInfo from '@/components/view/AccessibilityInfo';
 import { TEMP_USER_ID } from '@/constants/temp_user';
 import { useAnalytics } from '@/hooks/useAnalytics';
@@ -8,6 +9,7 @@ import type { Coordinates } from '@/types/geo';
 import type { FavoriteSpot, SpotCard } from '@/types/spot';
 import { formatTag, parseTags } from '@/utils/tagUtils';
 import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
+import Lottie from 'lottie-react';
 import { Heart } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -42,7 +44,7 @@ export default function SwipeableCardList({
   const mainTextColorClass = isPetMode
     ? 'text-ormi-green-500'
     : 'text-orange-500';
-  const mainShadowClass = isPetMode
+  const _mainShadowClass = isPetMode
     ? 'shadow-ormi-green-500/30'
     : 'shadow-orange-500/30';
   const fillHeartClass = isPetMode ? 'fill-ormi-green-500' : 'fill-orange-500';
@@ -66,6 +68,32 @@ export default function SwipeableCardList({
   }
 
   const currentCard = items[currentIndex];
+
+  // Parse festival data if available
+  const isFestival = currentCard
+    ? currentCard.category_1 === 'FESTIVAL' ||
+      currentCard.cat1 === 'EVENT' ||
+      currentCard.cat2 === 'FESTIVAL'
+    : false;
+
+  let festivalData: {
+    st_dt: string;
+    ed_dt: string;
+    pricetype: string;
+  } | null = null;
+
+  if (isFestival && currentCard?.festivalcontents) {
+    try {
+      festivalData = JSON.parse(currentCard.festivalcontents);
+    } catch (e) {
+      console.error('Failed to parse festival contents', e);
+    }
+  }
+
+  // Check if ON AIR (Show if festival has not ended yet)
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const isOnAir = isFestival && festivalData && todayStr <= festivalData.ed_dt;
 
   // Parse tags if this is a favorite card
   const tags = parseTags((currentCard as FavoriteSpot)?.tag);
@@ -376,6 +404,20 @@ export default function SwipeableCardList({
                 {/* Image Section */}
                 <div className="px-4 pt-2 pb-4">
                   <div className="relative aspect-4/3 w-full overflow-hidden rounded-[32px] shadow-sm">
+                    {isOnAir && (
+                      <div className="absolute top-6 left-6 z-20 flex flex-col items-center pointer-events-none">
+                        <div className="relative flex items-center justify-center">
+                          <Lottie
+                            animationData={fireworksAnimation}
+                            className="absolute w-60 h-60 scale-150 opacity-90"
+                            loop={true}
+                          />
+                          <div className="relative z-10 bg-linear-to-r from-red-600 to-pink-600 text-white text-[11px] font-black px-3 py-1 rounded-full shadow-[0_0_15px_rgba(220,38,38,0.6)] border border-white/30 backdrop-blur-sm tracking-widest animate-pulse">
+                            ON AIR
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <img
                       src={currentCard.first_image || fallbackImage}
                       alt={currentCard.title}
@@ -455,26 +497,101 @@ export default function SwipeableCardList({
                     );
                   })()}
                 </div>
-                {/* Review/Quote Box */}
-                {currentCard.reviews && currentCard.reviews.length > 0 && (
-                  <div className="px-4 mb-6">
-                    <div className="bg-gray-50 rounded-3xl p-6 relative">
-                      {/* Quote Icon decorative */}
-                      <span className="absolute top-4 left-4 text-4xl text-gray-200 font-serif leading-none">
-                        "
-                      </span>
+                {/* Festival Info or Review/Quote Box */}
+                {(() => {
+                  const isFestival =
+                    currentCard.category_1 === 'FESTIVAL' ||
+                    currentCard.cat1 === 'EVENT' ||
+                    currentCard.cat2 === 'FESTIVAL';
+                  let festivalData: {
+                    st_dt: string;
+                    ed_dt: string;
+                    pricetype: string;
+                  } | null = null;
 
-                      <p className="text-gray-700 text-lg font-medium leading-relaxed relative z-10 pt-2 px-2 text-center break-keep">
-                        {currentCard.reviews[0].detail.length > 50
-                          ? `"${currentCard.reviews[0].detail.slice(0, 50)}..."`
-                          : `"${currentCard.reviews[0].detail}"`}
-                      </p>
-                      <p className="text-center text-gray-400 text-sm mt-3">
-                        주말 나들이 장소로 추천드립니다.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                  if (isFestival && currentCard.festivalcontents) {
+                    try {
+                      festivalData = JSON.parse(currentCard.festivalcontents);
+                    } catch (e) {
+                      console.error('Failed to parse festival contents', e);
+                    }
+                  }
+
+                  if (isFestival && festivalData) {
+                    const formatDate = (dateStr: string) => {
+                      if (!dateStr || dateStr.length !== 8) return dateStr;
+                      return `${dateStr.slice(0, 4)}.${dateStr.slice(4, 6)}.${dateStr.slice(6)}`;
+                    };
+
+                    return (
+                      <div className="px-4 mb-6">
+                        <div className="bg-orange-50/80 rounded-3xl p-5 border border-orange-100 relative overflow-hidden">
+                          {/* Decorative Icon */}
+                          <div className="absolute top-0 right-0 p-4 opacity-10">
+                            <span className="text-6xl">🎉</span>
+                          </div>
+
+                          <h4 className="font-bold text-orange-800 mb-3 flex items-center gap-2 relative z-10">
+                            <span className="text-xl">🎉</span> 진행중인 축제
+                          </h4>
+                          <div className="space-y-1.5 text-sm text-gray-700 relative z-10">
+                            <p className="flex items-center gap-2">
+                              <span className="font-semibold min-w-10 text-orange-600">
+                                기간
+                              </span>
+                              {formatDate(festivalData.st_dt)} ~{' '}
+                              {formatDate(festivalData.ed_dt)}
+                            </p>
+                            <p className="flex items-center gap-2">
+                              <span className="font-semibold min-w-10 text-orange-600">
+                                요금
+                              </span>
+                              <span
+                                className={
+                                  festivalData.pricetype === '무료'
+                                    ? 'text-blue-600 font-bold'
+                                    : 'text-gray-900'
+                                }
+                              >
+                                {festivalData.pricetype}
+                              </span>
+                            </p>
+                          </div>
+                          {currentCard.sbst && (
+                            <div className="mt-4 pt-3 border-t border-orange-200/50">
+                              <p className="text-xs text-gray-600 leading-relaxed line-clamp-4 text-justify">
+                                {currentCard.sbst}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Default Review Box
+                  if (currentCard.reviews && currentCard.reviews.length > 0) {
+                    return (
+                      <div className="px-4 mb-6">
+                        <div className="bg-gray-50 rounded-3xl p-6 relative">
+                          <span className="absolute top-4 left-4 text-4xl text-gray-200 font-serif leading-none">
+                            "
+                          </span>
+                          <p className="text-gray-700 text-lg font-medium leading-relaxed relative z-10 pt-2 px-2 text-center break-keep">
+                            {currentCard.reviews[0].detail.length > 50
+                              ? `"${currentCard.reviews[0].detail.slice(0, 50)}..."`
+                              : `"${currentCard.reviews[0].detail}"`}
+                          </p>
+                          <p className="text-center text-gray-400 text-sm mt-3">
+                            주말 나들이 장소로 추천드립니다.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return null;
+                })()}
                 {/* Accessibility Grid */}
                 <div className="px-6 pb-6">
                   <AccessibilityInfo spot={currentCard} />
@@ -482,14 +599,14 @@ export default function SwipeableCardList({
               </div>
 
               {/* Bottom Fixed Buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-linear-to-t from-white via-white/80 to-transparent pb-24">
+              <div className="absolute bottom-18 left-0 right-0 p-4 bg-white border-t border-gray-100 pb-6 rounded-t-3xl">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {
                       e.stopPropagation(); // prevent drag
                       onNavigate?.();
                     }}
-                    className={`flex-1 h-14 ${mainColorClass} ${mainHoverClass} active:scale-95 transition-all rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg shadow-lg ${mainShadowClass}`}
+                    className={`flex-1 h-14 ${mainColorClass} ${mainHoverClass} active:scale-95 transition-all rounded-2xl flex items-center justify-center gap-2 text-white font-bold text-lg`}
                   >
                     <svg
                       width="20"

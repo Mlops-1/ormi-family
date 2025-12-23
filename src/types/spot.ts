@@ -6,6 +6,7 @@ export const SpotCategory = {
   FOOD: 'FOOD',
   EVENT: 'EVENT',
   SHOPPING: 'SHOPPING',
+  TRANSPORT: 'TRANSPORT',
 } as const;
 
 export type SpotCategoryType = (typeof SpotCategory)[keyof typeof SpotCategory];
@@ -65,6 +66,8 @@ export interface SpotCard {
   elevator: number;
   parking: number;
   reviews: Review[];
+  festivalcontents?: string; // JSON string containing {st_dt, ed_dt, pricetype}
+  sbst?: string; // Festival description
 }
 
 export interface FavoriteSpot extends SpotCard {

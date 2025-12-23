@@ -61,11 +61,7 @@ export default defineConfig({
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
-      '/user/info': {
-        target: 'http://13.209.98.82:8000',
-        changeOrigin: true,
-      },
-      '/user/update': {
+      '/user': {
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },

@@ -1,5 +1,10 @@
 import instance from './instance';
 
+// Enum types for user profile
+export type ChildAgeGroup = 'INFANT' | 'TODDLER' | 'KID';
+export type StrollerYN = 'Y' | 'N';
+export type TravelStyle = 'ACTIVE' | 'RELAX' | 'EDU';
+
 export interface UserResponse {
   user_name: string;
   email: string;
@@ -11,16 +16,24 @@ export interface UserResponse {
   user_id: number;
   created_at: string;
   updated_at: string;
+  // New optional fields
+  child_age_group?: ChildAgeGroup;
+  stroller_yn?: StrollerYN;
+  travel_style?: TravelStyle;
 }
 
 export interface UserUpdatePayload {
-  user_name: string;
-  email: string;
-  profile: string;
-  is_disabled: number;
-  with_child: number;
-  with_pet: number;
-  has_stroller: number;
+  user_name?: string;
+  email?: string;
+  profile?: string;
+  is_disabled?: number;
+  with_child?: number;
+  with_pet?: number;
+  has_stroller?: number;
+  // New optional fields
+  child_age_group?: ChildAgeGroup;
+  stroller_yn?: StrollerYN;
+  travel_style?: TravelStyle;
 }
 
 export const UserAPI = {

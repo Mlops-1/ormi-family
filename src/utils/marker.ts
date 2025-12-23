@@ -59,15 +59,25 @@ export const createReferenceMarker = (isPet: boolean, color: string) => {
 export const createSpotMarker = (
   imageUrl: string,
   isActive: boolean,
-  theme: 'orange' | 'green' = 'orange'
+  theme: 'orange' | 'green' | 'purple' = 'orange',
+  contentId?: string | number
 ) => {
   const sizeValue = isActive ? 60 : 48;
   const size = `${sizeValue}px`;
   const zIndex = isActive ? 100 : 20;
 
-  const activeColor = theme === 'green' ? '#10B981' : '#FFA500'; // Changed from #FF5000 to match dashboard orange
-  const border = isActive ? `3px solid ${activeColor}` : '2px solid white';
-  const arrowColor = isActive ? activeColor : 'white';
+  const activeColor =
+    theme === 'purple' ? '#A855F7' : theme === 'green' ? '#10B981' : '#FFA500';
+  const border = isActive
+    ? `3px solid ${activeColor}`
+    : theme === 'purple'
+      ? `2px solid ${activeColor}`
+      : '2px solid white';
+  const arrowColor = isActive
+    ? activeColor
+    : theme === 'purple'
+      ? activeColor
+      : 'white';
 
   const pulseLoop = isActive
     ? `
@@ -84,6 +94,28 @@ export const createSpotMarker = (
           <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='/no_image.png'"/>
         </div>
         <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid ${arrowColor}; filter: drop-shadow(0 2px 1px rgba(0,0,0,0.2));"></div>
+        ${
+          theme === 'purple'
+            ? `
+          <div class="absolute inset-0 rounded-full animate-purple-pulse pointer-events-none" style="z-index: -1;"></div>
+          <style>
+            @keyframes purple-pulse {
+              0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.7); }
+              70% { box-shadow: 0 0 0 12px rgba(168, 85, 247, 0); }
+              100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+            }
+            .animate-purple-pulse {
+              animation: purple-pulse 2s infinite;
+            }
+          </style>
+          `
+            : ''
+        }
+        ${
+          theme === 'purple' && contentId
+            ? `<div id="fest-icon-${contentId}" style="position: absolute; width: 100px; height: 100px; left: 50%; top: 50%; transform: translate(-50%, -55%); z-index: 200; pointer-events: none;"></div>`
+            : ''
+        }
       </div>
     </div>
   `;
