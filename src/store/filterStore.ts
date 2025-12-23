@@ -59,13 +59,22 @@ export const INITIAL_BARRIER_IDS: AccessibilityType[] = [
 ];
 
 // Initial Category Options
-export const INITIAL_CATEGORY_IDS: SpotCategoryType[] = [
+export const TODDLER_CATEGORY_IDS: SpotCategoryType[] = [
   SpotCategory.TOUR_SPOT,
   SpotCategory.ACCOMMODATION,
-  SpotCategory.FOOD,
-  SpotCategory.CAFE,
   SpotCategory.EVENT,
+];
+
+export const PET_CATEGORY_IDS: SpotCategoryType[] = [
+  SpotCategory.CAFE,
+  SpotCategory.FOOD,
   SpotCategory.SHOPPING,
+];
+
+// Initial Category Options (Fallback)
+export const INITIAL_CATEGORY_IDS: SpotCategoryType[] = [
+  ...TODDLER_CATEGORY_IDS,
+  ...PET_CATEGORY_IDS,
 ];
 
 export const useFilterStore = create<FilterStore>()(
@@ -184,6 +193,9 @@ export const useFilterStore = create<FilterStore>()(
           let barrierPriority: AccessibilityType[] = [];
           let initialSelectedBarriers: AccessibilityType[] = [];
 
+          // Set Categories based on mode logic
+          let initialCategoryIds: SpotCategoryType[] = [];
+
           if (mode === 'toddler') {
             barrierPriority = [
               'yes_kids', // New Top priority
@@ -193,12 +205,14 @@ export const useFilterStore = create<FilterStore>()(
               'elevator',
             ];
             initialSelectedBarriers = [...barrierPriority];
+            initialCategoryIds = TODDLER_CATEGORY_IDS;
           } else {
             barrierPriority = [
               'yes_pet', // New Top priority
               'help_dog',
             ];
             initialSelectedBarriers = [...barrierPriority];
+            initialCategoryIds = PET_CATEGORY_IDS;
           }
 
           const restBarriers = INITIAL_BARRIER_IDS.filter(
@@ -207,7 +221,7 @@ export const useFilterStore = create<FilterStore>()(
           const newBarrierOrder = [...barrierPriority, ...restBarriers];
 
           set({
-            selectedCategoryIds: INITIAL_CATEGORY_IDS, // First time: All Categories
+            selectedCategoryIds: initialCategoryIds,
             selectedBarrierIds: initialSelectedBarriers,
             barrierOrderedIds: newBarrierOrder,
             themeFilters: updatedThemeFilters,
@@ -226,6 +240,23 @@ export const useFilterStore = create<FilterStore>()(
         selectedCategoryIds: state.selectedCategoryIds,
         themeFilters: state.themeFilters,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Validation: Ensure selectedCategoryIds is not empty
+        if (state) {
+          if (
+            !state.selectedCategoryIds ||
+            state.selectedCategoryIds.length === 0
+          ) {
+            state.setSelectedCategoryIds(INITIAL_CATEGORY_IDS);
+          }
+          if (
+            !state.categoryOrderedIds ||
+            state.categoryOrderedIds.length === 0
+          ) {
+            state.setCategoryOrderedIds(INITIAL_CATEGORY_IDS);
+          }
+        }
+      },
     }
   )
 );

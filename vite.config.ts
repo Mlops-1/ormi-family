@@ -69,6 +69,10 @@ export default defineConfig({
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,
       },
+      '/spot': {
+        target: 'http://13.209.98.82:8000',
+        changeOrigin: true,
+      },
       '/docs': {
         target: 'http://13.209.98.82:8000',
         changeOrigin: true,

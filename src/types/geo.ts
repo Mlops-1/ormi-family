@@ -1,9 +1,9 @@
-interface Coordinates {
+export interface Coordinates {
   lat: number;
   lon: number;
 }
 
-interface GeoLocationState {
+export interface GeoLocationState {
   loaded: boolean;
   coordinates: Coordinates;
   error?: {
@@ -12,5 +12,3 @@ interface GeoLocationState {
   };
   isFallback: boolean;
 }
-
-export type { Coordinates, GeoLocationState };

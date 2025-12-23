@@ -1,16 +1,16 @@
+import LoadingScreen from '@/components/common/LoadingScreen';
+import ModeToggle from '@/components/common/ModeToggle';
+import AppNotification from '@/components/common/Notification';
 import BackgroundMap from '@/components/modules/BackgroundMap';
+import GeoLocation from '@/components/modules/GeoLocation';
+import ProtectedRoute from '@/components/modules/ProtectedRoute';
+import RouteNavigation from '@/components/modules/RouteNavigation';
 import BarrierFreeFilter from '@/components/view/BarrierFreeFilter';
 import BottomNavigation, {
   type RouteAction,
 } from '@/components/view/BottomNavigation';
 import CategoryFilter from '@/components/view/CategoryFilter';
-import GeoLocation from '@/components/modules/GeoLocation';
-import LoadingScreen from '@/components/common/LoadingScreen';
-import ModeToggle from '@/components/common/ModeToggle';
-import AppNotification from '@/components/common/Notification';
 import OnboardingOverlay from '@/components/view/OnboardingOverlay';
-import ProtectedRoute from '@/components/modules/ProtectedRoute';
-import RouteNavigation from '@/components/modules/RouteNavigation';
 import SwipeableCardList from '@/components/view/SwipeableCardList';
 import WeatherWidget from '@/components/view/WeatherWidget';
 import { TEMP_USER_ID } from '@/constants/temp_user';
@@ -211,7 +211,7 @@ function MapPageContent() {
     const ratedSpots = allSpots.map((spot: SpotCard) => {
       const matchedFilters = selectedBarrierIds.filter((f) => {
         const val = spot[f as keyof SpotCard];
-        return typeof val === 'string' && val.trim() !== '';
+        return val === 1;
       });
       return { spot, matchedFilters };
     });
@@ -244,7 +244,7 @@ function MapPageContent() {
     const filtered = allSpots.filter((spot: SpotCard) => {
       return selectedBarrierIds.every((filter: AccessibilityType) => {
         const val = spot[filter];
-        return typeof val === 'string' && val.trim() !== '';
+        return val === 1;
       });
     });
 

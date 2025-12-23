@@ -56,14 +56,14 @@ export interface SpotCard {
   distance: number;
   yes_kids: number;
   yes_pet: number;
-  baby_spare_chair: string;
-  stroller: string;
-  wheelchair: string;
-  lactation_room: string;
-  help_dog: string;
-  route: string;
-  elevator: string;
-  parking: string;
+  baby_spare_chair: number;
+  stroller: number;
+  wheelchair: number;
+  lactation_room: number;
+  help_dog: number;
+  route: number;
+  elevator: number;
+  parking: number;
   reviews: Review[];
 }
 

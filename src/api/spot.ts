@@ -10,8 +10,7 @@ export const SpotAPI = {
   getRecommendedSpots: (data: SpotRequest) =>
     instance.post<SpotCard[]>('/prod/recommend', data),
 
-  getSpotList: () => instance.get<SpotCard[]>('/prod/spots'), // Placeholder endpoint
+  getSpotList: () => instance.get<SpotCard[]>('/spot'), // Placeholder endpoint
 
-  getSpotDetailById: (id: number) =>
-    instance.get<SpotCard>(`/prod/spots/${id}`), // Placeholder endpoint
+  getSpotDetailById: (id: number) => instance.get<SpotCard>(`/spot/${id}`), // Placeholder endpoint
 };

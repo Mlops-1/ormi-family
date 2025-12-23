@@ -412,18 +412,48 @@ export default function SwipeableCardList({
                   </p>
 
                   {/* Tags */}
-                  {tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className={`inline-block ${mainColorClass} text-white text-xs font-medium px-3 py-1 rounded-full`}
-                        >
-                          {formatTag(tag)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {(() => {
+                    if (!tags || tags.length === 0) return null;
+
+                    // 1. Remove duplicates
+                    const uniqueTags = Array.from(new Set(tags));
+
+                    // 2. Sort based on theme
+                    const sortedTags = uniqueTags.sort((a, b) => {
+                      if (isPetMode) {
+                        const aRate =
+                          a.includes('반려') || a.includes('애견') ? 1 : 0;
+                        const bRate =
+                          b.includes('반려') || b.includes('애견') ? 1 : 0;
+                        return bRate - aRate;
+                      } else {
+                        // Toddler Mode
+                        const aRate =
+                          a.includes('아이') || a.includes('유아') ? 1 : 0;
+                        const bRate =
+                          b.includes('아이') || b.includes('유아') ? 1 : 0;
+                        return bRate - aRate;
+                      }
+                    });
+
+                    // 3. Limit to 6
+                    const displayTags = sortedTags.slice(0, 6);
+
+                    if (displayTags.length === 0) return null;
+
+                    return (
+                      <div className="flex flex-wrap gap-2">
+                        {displayTags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className={`inline-block ${mainColorClass} text-white text-xs font-medium px-3 py-1 rounded-full`}
+                          >
+                            {formatTag(tag)}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
                 {/* Review/Quote Box */}
                 {currentCard.reviews && currentCard.reviews.length > 0 && (
@@ -452,7 +482,7 @@ export default function SwipeableCardList({
               </div>
 
               {/* Bottom Fixed Buttons */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 pb-8 bg-linear-to-t from-white via-white/80 to-transparent pt-16">
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-linear-to-t from-white via-white/80 to-transparent pb-24">
                 <div className="flex gap-3">
                   <button
                     onClick={(e) => {

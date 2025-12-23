@@ -162,13 +162,18 @@ export default function BottomNavigation({
       }
     } else if (info.offset.y < -threshold) {
       // Dragged Up
-      setIsCollapsed(false);
+      if (isCollapsed) {
+        setIsCollapsed(false);
+      } else if (activeSpot) {
+        // If already expanded and dragged up further, go to full card view
+        onViewSpotDetails(activeSpot);
+      }
     }
   };
 
   return (
     <div
-      className={`absolute inset-0 pointer-events-none flex flex-col justify-end ${isMobilePortrait ? 'z-20' : 'z-40'}`}
+      className={`absolute inset-0 pointer-events-none flex flex-col justify-end ${isMobilePortrait ? 'z-50' : 'z-40'}`}
     >
       {/* Sliding Panel Content */}
       <AnimatePresence>
@@ -253,8 +258,8 @@ export default function BottomNavigation({
               paddingBottom: isMobilePortrait
                 ? isCollapsed
                   ? '0px'
-                  : '140px'
-                : '20px',
+                  : '50px'
+                : '16px',
 
               // If My Places is active on non-mobile, push it up higher
               ...(!isMobilePortrait && activeTab === 'my-places'
@@ -342,14 +347,14 @@ export default function BottomNavigation({
       </AnimatePresence>
 
       {/* Dock (Bottom Navigation Bar) */}
-      <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-50 flex justify-center">
+      <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-[9999] flex justify-center">
         <div
           className={`
             w-full bg-white border-t border-gray-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] 
             px-6 py-2 pb-5 pointer-events-auto flex items-center justify-between relative
             
             // Floating on Tablet/Desktop
-            md:max-w-3xl md:rounded-full md:bottom-8 md:mb-0 md:shadow-2xl md:border md:border-gray-100 md:bg-white/90 md:backdrop-blur-xl md:px-10 md:py-4 md:h-20
+            md:max-w-3xl md:rounded-full md:bottom-2 md:mb-0 md:shadow-2xl md:border md:border-gray-100 md:bg-white/90 md:backdrop-blur-xl md:px-10 md:py-4 md:h-20
             
             // Landscape Phone: slightly lower height/padding
             landscape:py-2 landscape:pb-3
@@ -536,6 +541,23 @@ function SpotDetailContent({
           <h2 className="text-xl font-bold text-gray-900 leading-tight">
             {spot.title}
           </h2>
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-1 mt-2 mb-1">
+            {[spot.category_1, spot.category_2, spot.category_3]
+              .filter((cat): cat is string => !!cat)
+              .filter((cat, idx, self) => self.indexOf(cat) === idx) // Deduplicate
+              .slice(0, 3)
+              .map((cat, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-600"
+                >
+                  {cat}
+                </span>
+              ))}
+          </div>
+
           <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
             <span className="truncate max-w-[200px]">
               {spot.addr_1 || spot.addr_2}
@@ -545,10 +567,6 @@ function SpotDetailContent({
                 {formatDistance(distance)}
               </span>
             )}
-          </div>
-          {/* Tags */}
-          <div className="flex gap-2 mt-3">
-            {/* is_indoor property does not exist on SpotCard currently */}
           </div>
         </div>
         {!hideCloseButton && (
@@ -567,7 +585,7 @@ function SpotDetailContent({
           className={`${themeBg} text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-95 transition-all shadow-md`}
         >
           <Info size={18} />
-          <span className="whitespace-nowrap">카드 상세</span>
+          <span className="whitespace-nowrap">자세히 보기</span>
         </button>
         <button
           onClick={() => onRouteSelect('fast')}
@@ -578,7 +596,7 @@ function SpotDetailContent({
         </button>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 pb-[20px]">
         <RouteBtn
           icon={<Flag size={16} />}
           label={hasStart ? '출발 변경' : '출발지'}

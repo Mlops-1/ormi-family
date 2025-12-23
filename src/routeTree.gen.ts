@@ -8,108 +8,108 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as UserInfoRouteImport } from './routes/user-info'
-import { Route as UserRouteImport } from './routes/user'
-import { Route as SignupRouteImport } from './routes/signup'
-import { Route as OrmiTeamRouteImport } from './routes/ormi-team'
-import { Route as MapRouteImport } from './routes/map'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as SplatRouteImport } from './routes/$'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as SettingsProfileRouteImport } from './routes/settings/profile'
-import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
+import { Route as rootRouteImport } from './routes/__root';
+import { Route as UserInfoRouteImport } from './routes/user-info';
+import { Route as UserRouteImport } from './routes/user';
+import { Route as SignupRouteImport } from './routes/signup';
+import { Route as OrmiTeamRouteImport } from './routes/ormi-team';
+import { Route as MapRouteImport } from './routes/map';
+import { Route as LoginRouteImport } from './routes/login';
+import { Route as SplatRouteImport } from './routes/$';
+import { Route as IndexRouteImport } from './routes/index';
+import { Route as SettingsProfileRouteImport } from './routes/settings/profile';
+import { Route as AuthCallbackRouteImport } from './routes/auth/callback';
 
 const UserInfoRoute = UserInfoRouteImport.update({
   id: '/user-info',
   path: '/user-info',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const UserRoute = UserRouteImport.update({
   id: '/user',
   path: '/user',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const OrmiTeamRoute = OrmiTeamRouteImport.update({
   id: '/ormi-team',
   path: '/ormi-team',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const MapRoute = MapRouteImport.update({
   id: '/map',
   path: '/map',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SplatRoute = SplatRouteImport.update({
   id: '/$',
   path: '/$',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SettingsProfileRoute = SettingsProfileRouteImport.update({
   id: '/settings/profile',
   path: '/settings/profile',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AuthCallbackRoute = AuthCallbackRouteImport.update({
   id: '/auth/callback',
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/login': typeof LoginRoute
-  '/map': typeof MapRoute
-  '/ormi-team': typeof OrmiTeamRoute
-  '/signup': typeof SignupRoute
-  '/user': typeof UserRoute
-  '/user-info': typeof UserInfoRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/settings/profile': typeof SettingsProfileRoute
+  '/': typeof IndexRoute;
+  '/$': typeof SplatRoute;
+  '/login': typeof LoginRoute;
+  '/map': typeof MapRoute;
+  '/ormi-team': typeof OrmiTeamRoute;
+  '/signup': typeof SignupRoute;
+  '/user': typeof UserRoute;
+  '/user-info': typeof UserInfoRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/settings/profile': typeof SettingsProfileRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/login': typeof LoginRoute
-  '/map': typeof MapRoute
-  '/ormi-team': typeof OrmiTeamRoute
-  '/signup': typeof SignupRoute
-  '/user': typeof UserRoute
-  '/user-info': typeof UserInfoRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/settings/profile': typeof SettingsProfileRoute
+  '/': typeof IndexRoute;
+  '/$': typeof SplatRoute;
+  '/login': typeof LoginRoute;
+  '/map': typeof MapRoute;
+  '/ormi-team': typeof OrmiTeamRoute;
+  '/signup': typeof SignupRoute;
+  '/user': typeof UserRoute;
+  '/user-info': typeof UserInfoRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/settings/profile': typeof SettingsProfileRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/$': typeof SplatRoute
-  '/login': typeof LoginRoute
-  '/map': typeof MapRoute
-  '/ormi-team': typeof OrmiTeamRoute
-  '/signup': typeof SignupRoute
-  '/user': typeof UserRoute
-  '/user-info': typeof UserInfoRoute
-  '/auth/callback': typeof AuthCallbackRoute
-  '/settings/profile': typeof SettingsProfileRoute
+  __root__: typeof rootRouteImport;
+  '/': typeof IndexRoute;
+  '/$': typeof SplatRoute;
+  '/login': typeof LoginRoute;
+  '/map': typeof MapRoute;
+  '/ormi-team': typeof OrmiTeamRoute;
+  '/signup': typeof SignupRoute;
+  '/user': typeof UserRoute;
+  '/user-info': typeof UserInfoRoute;
+  '/auth/callback': typeof AuthCallbackRoute;
+  '/settings/profile': typeof SettingsProfileRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
     | '/'
     | '/$'
@@ -120,8 +120,8 @@ export interface FileRouteTypes {
     | '/user'
     | '/user-info'
     | '/auth/callback'
-    | '/settings/profile'
-  fileRoutesByTo: FileRoutesByTo
+    | '/settings/profile';
+  fileRoutesByTo: FileRoutesByTo;
   to:
     | '/'
     | '/$'
@@ -132,7 +132,7 @@ export interface FileRouteTypes {
     | '/user'
     | '/user-info'
     | '/auth/callback'
-    | '/settings/profile'
+    | '/settings/profile';
   id:
     | '__root__'
     | '/'
@@ -144,94 +144,94 @@ export interface FileRouteTypes {
     | '/user'
     | '/user-info'
     | '/auth/callback'
-    | '/settings/profile'
-  fileRoutesById: FileRoutesById
+    | '/settings/profile';
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  SplatRoute: typeof SplatRoute
-  LoginRoute: typeof LoginRoute
-  MapRoute: typeof MapRoute
-  OrmiTeamRoute: typeof OrmiTeamRoute
-  SignupRoute: typeof SignupRoute
-  UserRoute: typeof UserRoute
-  UserInfoRoute: typeof UserInfoRoute
-  AuthCallbackRoute: typeof AuthCallbackRoute
-  SettingsProfileRoute: typeof SettingsProfileRoute
+  IndexRoute: typeof IndexRoute;
+  SplatRoute: typeof SplatRoute;
+  LoginRoute: typeof LoginRoute;
+  MapRoute: typeof MapRoute;
+  OrmiTeamRoute: typeof OrmiTeamRoute;
+  SignupRoute: typeof SignupRoute;
+  UserRoute: typeof UserRoute;
+  UserInfoRoute: typeof UserInfoRoute;
+  AuthCallbackRoute: typeof AuthCallbackRoute;
+  SettingsProfileRoute: typeof SettingsProfileRoute;
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
     '/user-info': {
-      id: '/user-info'
-      path: '/user-info'
-      fullPath: '/user-info'
-      preLoaderRoute: typeof UserInfoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/user-info';
+      path: '/user-info';
+      fullPath: '/user-info';
+      preLoaderRoute: typeof UserInfoRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/user': {
-      id: '/user'
-      path: '/user'
-      fullPath: '/user'
-      preLoaderRoute: typeof UserRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/user';
+      path: '/user';
+      fullPath: '/user';
+      preLoaderRoute: typeof UserRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/signup': {
-      id: '/signup'
-      path: '/signup'
-      fullPath: '/signup'
-      preLoaderRoute: typeof SignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/signup';
+      path: '/signup';
+      fullPath: '/signup';
+      preLoaderRoute: typeof SignupRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/ormi-team': {
-      id: '/ormi-team'
-      path: '/ormi-team'
-      fullPath: '/ormi-team'
-      preLoaderRoute: typeof OrmiTeamRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/ormi-team';
+      path: '/ormi-team';
+      fullPath: '/ormi-team';
+      preLoaderRoute: typeof OrmiTeamRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/map': {
-      id: '/map'
-      path: '/map'
-      fullPath: '/map'
-      preLoaderRoute: typeof MapRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/map';
+      path: '/map';
+      fullPath: '/map';
+      preLoaderRoute: typeof MapRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/login';
+      path: '/login';
+      fullPath: '/login';
+      preLoaderRoute: typeof LoginRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/$': {
-      id: '/$'
-      path: '/$'
-      fullPath: '/$'
-      preLoaderRoute: typeof SplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/$';
+      path: '/$';
+      fullPath: '/$';
+      preLoaderRoute: typeof SplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/';
+      path: '/';
+      fullPath: '/';
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/settings/profile': {
-      id: '/settings/profile'
-      path: '/settings/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof SettingsProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/settings/profile';
+      path: '/settings/profile';
+      fullPath: '/settings/profile';
+      preLoaderRoute: typeof SettingsProfileRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
     '/auth/callback': {
-      id: '/auth/callback'
-      path: '/auth/callback'
-      fullPath: '/auth/callback'
-      preLoaderRoute: typeof AuthCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+      id: '/auth/callback';
+      path: '/auth/callback';
+      fullPath: '/auth/callback';
+      preLoaderRoute: typeof AuthCallbackRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
@@ -246,7 +246,7 @@ const rootRouteChildren: RootRouteChildren = {
   UserInfoRoute: UserInfoRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   SettingsProfileRoute: SettingsProfileRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
