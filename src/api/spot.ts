@@ -1,14 +1,16 @@
 import type { SpotCard, SpotRequest } from '@/types/spot';
 import instance from './instance';
 
-// In production, use direct Lambda URL; in development, use Vite proxy
+// In production, use direct Lambda URL; in development, always use Vite proxy
 const getRecommendUrl = () => {
-  const lambdaUrl = import.meta.env.VITE_RECOMMEND_API_URL;
-  // If Lambda URL is set and we're in production, use it directly
-  if (lambdaUrl && import.meta.env.PROD) {
-    return `${lambdaUrl}/prod/recommend`;
+  // Only use Lambda URL if we're definitely in production
+  if (import.meta.env.PROD) {
+    const lambdaUrl = import.meta.env.VITE_RECOMMEND_API_URL;
+    if (lambdaUrl) {
+      return `${lambdaUrl}/prod/recommend`;
+    }
   }
-  // In development, use Vite proxy
+  // In development, always use Vite proxy
   return '/prod/recommend';
 };
 

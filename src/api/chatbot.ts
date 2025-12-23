@@ -4,14 +4,16 @@ import type {
   StreamEvent,
 } from '@/types/chatbot';
 
-// In production, use direct Lambda URL; in development, use Vite proxy
+// In production, use direct Lambda URL; in development, always use Vite proxy
 const getBaseUrl = () => {
-  const lambdaUrl = import.meta.env.VITE_CHATBOT_API_URL;
-  // If Lambda URL is set and we're in production, use it directly
-  if (lambdaUrl && import.meta.env.PROD) {
-    return `${lambdaUrl}/bot/agent`;
+  // Only use Lambda URL if we're definitely in production
+  if (import.meta.env.PROD) {
+    const lambdaUrl = import.meta.env.VITE_CHATBOT_API_URL;
+    if (lambdaUrl) {
+      return `${lambdaUrl}/bot/agent`;
+    }
   }
-  // In development, use Vite proxy
+  // In development, always use Vite proxy
   return '/bot/agent';
 };
 
