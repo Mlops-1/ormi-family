@@ -90,6 +90,7 @@ export default function BottomNavigation({
   } = useBottomFilterStore();
 
   const { mode } = useUserStore();
+  const { setMapMode } = useMapStore();
   const themeColor = mode === 'pet' ? 'text-ormi-green-600' : 'text-orange-600';
   const themeBg = mode === 'pet' ? 'bg-ormi-green-500' : 'bg-orange-500';
 
@@ -142,6 +143,8 @@ export default function BottomNavigation({
 
     // Toggle tab
     setActiveTab(tab);
+    // Ensure we are in map mode (hides card list behind the panel)
+    setMapMode(true);
     // Store automatically expands (isCollapsed = false) when setting tab.
   };
 

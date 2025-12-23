@@ -513,7 +513,7 @@ function MapPageContent() {
           )}
           {/* Floating Top Navigation */}
           <div
-            className={`absolute top-6 w-full px-2 md:px-6 z-50 flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
+            className={`absolute top-6 w-full px-2 md:px-6 z-[60] flex items-start justify-between gap-2 pointer-events-none transition-all duration-500 ease-in-out ${
               isRoutingMode && isMapMode
                 ? '-translate-y-full opacity-0'
                 : 'translate-y-0 opacity-100'
