@@ -1,3 +1,5 @@
+import floatingIconsImg from '@/assets/images/floating_icons_diverse.png';
+import titleLogoImg from '@/assets/images/title_logo_elegant.png';
 import motherAnimation from '@/assets/lotties/mother.json';
 import DogRiveAnimation from '@/components/view/DogRiveAnimation';
 import { useFilterStore } from '@/store/filterStore';
@@ -51,7 +53,7 @@ function LandingPage() {
       <div className="relative w-full max-w-3xl h-64 md:h-80 flex items-center justify-center -mb-8 -md:mb-10 z-10 group overflow-visible">
         {/* Main Title Logo Image - Elegant & Clean */}
         <motion.img
-          src="/src/assets/images/title_logo_elegant.png"
+          src={titleLogoImg}
           alt="탐라는가족"
           initial={{ scale: 0.8, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -337,7 +339,7 @@ function LandingPage() {
                 }`}
               >
                 <img
-                  src="/src/assets/images/floating_icons_diverse.png"
+                  src={floatingIconsImg}
                   alt="decoration"
                   className="max-w-none absolute object-cover"
                   style={{
