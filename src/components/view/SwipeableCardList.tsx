@@ -428,11 +428,13 @@ export default function SwipeableCardList({
                         e.currentTarget.src = fallbackImage;
                       }}
                     />
+                    {/* Score Badge - 좌측 상단 별점 형식 (ON AIR가 있으면 아래로 위치) */}
                     {hasScore && (
                       <div
-                        className={`absolute top-4 right-4 ${mainColorClass} text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg`}
+                        className={`absolute ${isOnAir ? 'top-20' : 'top-4'} left-4 z-10 ${mainColorClass} text-white text-sm font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1`}
                       >
-                        {Math.round(currentCard.score * 100)}% 매칭
+                        <span>★</span>
+                        <span>{currentCard.score.toFixed(1)}</span>
                       </div>
                     )}
                   </div>

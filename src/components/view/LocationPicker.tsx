@@ -104,7 +104,8 @@ export default function LocationPicker({
 
   // Initialize Map
   useEffect(() => {
-    if (isLoaded && mapRef.current && !mapInstance.current) {
+    const mapElement = mapRef.current;
+    if (isLoaded && mapElement && !mapInstance.current) {
       if (!window.Tmapv2) return;
 
       try {
@@ -113,7 +114,7 @@ export default function LocationPicker({
           initialCoordinates.lon
         );
 
-        const map = new window.Tmapv2.Map(mapRef.current, {
+        const map = new window.Tmapv2.Map(mapElement, {
           center: latlng,
           width: '100%',
           height: '100%',
@@ -148,12 +149,31 @@ export default function LocationPicker({
       }
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount - safer cleanup to prevent removeChild errors
     return () => {
-      if (mapInstance.current) {
-        // Tmapv2 doesn't always handle cleanup gracefully, but we can clear innerHTML if needed in parent
-        mapInstance.current = null;
-        markerInstance.current = null;
+      try {
+        if (markerInstance.current) {
+          markerInstance.current.setMap(null);
+          markerInstance.current = null;
+        }
+        if (mapInstance.current) {
+          // Remove all event listeners first
+          (mapInstance.current as any).removeAllListeners?.();
+          // Try to destroy the map safely
+          if (typeof mapInstance.current.destroy === 'function') {
+            mapInstance.current.destroy();
+          }
+          mapInstance.current = null;
+        }
+        // Clear the map container safely
+        if (mapElement) {
+          while (mapElement.firstChild) {
+            mapElement.removeChild(mapElement.firstChild);
+          }
+        }
+      } catch (e) {
+        // Silently ignore cleanup errors
+        console.debug('Map cleanup completed with warning:', e);
       }
     };
   }, [

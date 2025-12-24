@@ -12,23 +12,26 @@ import type {
   Spot,
 } from '@/types/chatbot';
 import type { Coordinates } from '@/types/geo';
-import type { FavoriteSpot } from '@/types/spot';
+import type { SpotCard } from '@/types/spot';
 import {
   ArrowLeft,
   Bot,
   ChevronRight, // Ensure this is kept
   Heart,
+  Loader2,
   MapPin,
   Search,
+  Star,
   X,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
   themeColor: string;
   userLocation?: { lat: number; lon: number };
   onRecommendationReceived?: (result: RecommendResponse) => void;
   onClose?: () => void;
+  onSpotClick?: (spot: SpotCard) => void;
 }
 
 interface ScenarioOption {
@@ -89,6 +92,7 @@ export default function ChatbotContent({
   userLocation,
   onRecommendationReceived,
   onClose,
+  onSpotClick,
 }: Props) {
   const { mode, userId } = useUserStore();
   const { savedLocations, manualLocation } = useMapStore();
@@ -112,6 +116,9 @@ export default function ChatbotContent({
   const [selectedDestination, setSelectedDestination] =
     useState<Destination | null>(null);
 
+  // start_end용 도착지 검색어 및 필터링
+  const [destinationSearchQuery, setDestinationSearchQuery] = useState('');
+
   const [isLoading, setIsLoading] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -128,8 +135,31 @@ export default function ChatbotContent({
   const [recommendationResult, setRecommendationResult] =
     useState<RecommendResponse | null>(null);
   const [likedSpotIds, setLikedSpotIds] = useState<Set<string>>(new Set());
-  const [favoriteSpots, setFavoriteSpots] = useState<FavoriteSpot[]>([]);
   const [isFavoritePickerOpen, setIsFavoritePickerOpen] = useState(false);
+
+  // 기준위치 기반 spot 리스트 가져오기 (start_end 도착지 선택용)
+  const { data: destinationSpots, isLoading: isLoadingDestSpots } =
+    SPOT_QUERY.useGetRecommendedSpots({
+      user_id: userId ? Number(userId) : TEMP_USER_ID,
+      mapx: effectiveUserLocation?.lon || 126.5312,
+      mapy: effectiveUserLocation?.lat || 33.4996,
+    });
+
+  // 검색어로 필터링된 도착지 spot 리스트
+  const filteredDestinationSpots = useMemo(() => {
+    if (!destinationSpots) return [];
+    if (!destinationSearchQuery.trim()) return destinationSpots.slice(0, 20);
+    const query = destinationSearchQuery.toLowerCase();
+    return destinationSpots
+      .filter(
+        (spot) =>
+          spot.title.toLowerCase().includes(query) ||
+          spot.addr_1?.toLowerCase().includes(query) ||
+          spot.category_1?.toLowerCase().includes(query) ||
+          spot.category_2?.toLowerCase().includes(query)
+      )
+      .slice(0, 20);
+  }, [destinationSpots, destinationSearchQuery]);
 
   // 전역 찜 목록 동기화
   const fetchFavorites = useCallback(async () => {
@@ -141,7 +171,6 @@ export default function ChatbotContent({
       if (resp.data) {
         const ids = new Set(resp.data.map((fav) => String(fav.content_id)));
         setLikedSpotIds(ids);
-        setFavoriteSpots(resp.data);
         console.log('[FAVORITE] Chatbot synced items:', ids.size);
       }
     } catch (err) {
@@ -206,9 +235,12 @@ export default function ChatbotContent({
     }
   };
 
-  // 찜한 장소를 목적지로 선택했을 때
-  const handleFavoriteDestinationSelect = (spot: FavoriteSpot) => {
+  // start_end 시나리오에서 spot 선택으로 도착지 결정
+  const handleSpotDestinationSelect = (spot: SpotCard) => {
     setIsFavoritePickerOpen(false);
+    setIsDestinationPickerOpen(false);
+    setIsSelectingLocation(false);
+
     if (effectiveUserLocation) {
       executeScenario(
         'start_end',
@@ -224,6 +256,47 @@ export default function ChatbotContent({
     }
   };
 
+  // Spot 타입을 SpotCard로 변환하는 헬퍼 함수
+  const convertToSpotCard = (spot: Spot): SpotCard => {
+    return {
+      content_id: Number(spot.content_id),
+      title: spot.title,
+      addr_1: spot.addr1,
+      addr_2: spot.addr2 || '',
+      area_code: 0,
+      cat1: spot.cat1,
+      cat2: spot.cat2,
+      category_1: spot.cat1,
+      category_2: spot.cat2,
+      category_3: '',
+      content_type_id: 0,
+      created_at: '',
+      first_image: spot.first_image,
+      second_image: '',
+      lat: spot.lat || 0,
+      lon: spot.lon || 0,
+      map_level: null,
+      updated_at: '',
+      show_flag: 1,
+      sigungu_code: 0,
+      tel: '',
+      zip_code: '',
+      score: 0 as number,
+      distance: 0,
+      yes_kids: spot.yes_kids ? 1 : 0,
+      yes_pet: spot.help_dog ? 1 : 0,
+      baby_spare_chair: 0,
+      stroller: spot.stroller ? 1 : 0,
+      wheelchair: spot.wheelchair ? 1 : 0,
+      lactation_room: spot.lactation_room ? 1 : 0,
+      help_dog: spot.help_dog ? 1 : 0,
+      route: 0,
+      elevator: 0,
+      parking: spot.parking ? 1 : 0,
+      reviews: [],
+    };
+  };
+
   // 위치 선택 핸들러 (location_time 시나리오용)
   const handleLocationSelect = (loc: {
     lat: number;
@@ -232,18 +305,9 @@ export default function ChatbotContent({
   }) => {
     setIsSelectingLocation(false);
     // 선택한 위치로 시나리오 실행
-    // start_end인 경우 목적지 선택 화면으로 이동
+    // start_end인 경우 목적지 선택 화면으로 이동 (기준위치 기준으로 검색)
     if (selectedScenario === 'start_end') {
       setIsDestinationPickerOpen(true);
-      // 여기서 handleDestinationConfirm까지 상태를 유지해야 함.
-      // -> 목적지를 찜 목록에서 선택하도록 변경됨 (2024.12.23)
-      if (favoriteSpots.length === 0) {
-        setError('찜한 장소가 없습니다. 먼저 장소를 찜해주세요!');
-        setIsSelectingLocation(false);
-        setSelectedScenario(null);
-        return;
-      }
-      setIsFavoritePickerOpen(true);
       return;
     }
 
@@ -631,8 +695,11 @@ export default function ChatbotContent({
               ))}
             </div>
           </div>
-        ) : isFavoritePickerOpen ? (
-          // 2.5 찜 목록 선택 (start_end 목적지용)
+        ) : selectedScenario === 'start_end' &&
+          isDestinationPickerOpen &&
+          !isLoading &&
+          !recommendationResult ? (
+          // 2.5 start_end 도착지 선택 화면 (기준위치 기준 spot 리스트)
           <div className="flex flex-col gap-4">
             <div className="flex gap-3">
               <div
@@ -641,41 +708,88 @@ export default function ChatbotContent({
                 <Bot className="w-4 h-4 text-white" />
               </div>
               <div className="bg-gray-100 p-3 rounded-2xl rounded-tl-none text-sm text-gray-800">
-                도착지로 설정할 장소를 선택해주세요.
+                기준위치 기준으로 도착지를 선택해주세요.
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
-              {favoriteSpots.map((spot) => (
-                <button
-                  key={spot.content_id}
-                  onClick={() => handleFavoriteDestinationSelect(spot)}
-                  className="flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-orange-300 hover:shadow-md transition-all text-left group"
-                >
-                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                    {spot.first_image ? (
-                      <img
-                        src={spot.first_image}
-                        alt={spot.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <MapPin className="w-6 h-6" />
+            {/* 검색 입력 */}
+            <div className="relative">
+              <input
+                type="text"
+                value={destinationSearchQuery}
+                onChange={(e) => setDestinationSearchQuery(e.target.value)}
+                placeholder="장소명 또는 주소로 검색..."
+                className={`w-full px-4 py-3 pr-10 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 ${isPetMode ? 'focus:ring-ormi-green-400' : 'focus:ring-orange-400'} bg-white`}
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            </div>
+
+            {/* Spot 리스트 */}
+            <div
+              className="max-h-[400px] overflow-y-auto space-y-2 pr-1"
+              style={{ touchAction: 'pan-y' }}
+            >
+              {isLoadingDestSpots ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2
+                    className={`w-6 h-6 animate-spin ${mainTextColorClass}`}
+                  />
+                  <span className="ml-2 text-gray-500 text-sm">
+                    장소 불러오는 중...
+                  </span>
+                </div>
+              ) : filteredDestinationSpots.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 text-sm">
+                  {destinationSearchQuery
+                    ? '검색 결과가 없습니다.'
+                    : '주변에 장소가 없습니다.'}
+                </div>
+              ) : (
+                filteredDestinationSpots.map((spot) => (
+                  <button
+                    key={spot.content_id}
+                    onClick={() => handleSpotDestinationSelect(spot)}
+                    className="w-full flex items-center gap-3 p-3 bg-white border border-gray-100 rounded-xl hover:border-orange-300 hover:shadow-md transition-all text-left group"
+                  >
+                    <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                      {spot.first_image ? (
+                        <img
+                          src={spot.first_image}
+                          alt={spot.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-300">
+                          <MapPin className="w-5 h-5" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-900 truncate text-sm group-hover:text-orange-600 transition-colors">
+                        {spot.title}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {spot.addr_1}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-400">
+                          {spot.category_2 || spot.category_1}
+                        </span>
+                        {spot.score > 0 && (
+                          <div className="flex items-center gap-0.5">
+                            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                            <span className="text-xs text-gray-500">
+                              {spot.score.toFixed(1)}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-gray-900 truncate">
-                      {spot.title}
-                    </h4>
-                    <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-                      {spot.addr_1}
-                    </p>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-orange-500" />
-                </button>
-              ))}
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-orange-500 shrink-0" />
+                  </button>
+                ))
+              )}
             </div>
           </div>
         ) : selectedScenario === 'destination_only' &&
@@ -829,8 +943,27 @@ export default function ChatbotContent({
               {recommendationResult.spots?.map((spot) => (
                 <div
                   key={spot.content_id}
-                  className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow relative"
+                  className="bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow relative cursor-pointer group"
+                  onClick={() => {
+                    if (onSpotClick) {
+                      onSpotClick(convertToSpotCard(spot));
+                    }
+                  }}
                 >
+                  {/* Score Badge - 우측 상단 */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <div
+                      className={`flex items-center gap-1 px-2 py-1 rounded-full ${isPetMode ? 'bg-ormi-green-500' : 'bg-orange-500'} text-white text-xs font-bold shadow-md`}
+                    >
+                      <Star className="w-3 h-3 fill-current" />
+                      <span>
+                        {spot.tags?.length > 0
+                          ? Math.min(5, spot.tags.length).toFixed(1)
+                          : '4.0'}
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="flex">
                     {/* 이미지 */}
                     <div className="w-24 h-24 shrink-0 bg-gray-100 relative">
@@ -850,8 +983,8 @@ export default function ChatbotContent({
                     {/* 내용 */}
                     <div className="flex-1 p-3 min-w-0 flex flex-col justify-between">
                       <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <h4 className="font-bold text-gray-900 line-clamp-1">
+                        <div className="flex items-start justify-between gap-2 pr-14">
+                          <h4 className="font-bold text-gray-900 line-clamp-1 group-hover:text-orange-600 transition-colors">
                             {spot.title}
                           </h4>
                         </div>
@@ -868,7 +1001,10 @@ export default function ChatbotContent({
 
                       <div className="flex items-center justify-end gap-2 mt-2">
                         <button
-                          onClick={() => handleToggleFavorite(spot)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleFavorite(spot);
+                          }}
                           className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                             likedSpotIds.has(String(spot.content_id))
                               ? 'bg-red-50 text-red-500'

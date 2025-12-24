@@ -345,6 +345,11 @@ export default function BottomNavigation({
                     console.log('Recommendation:', result);
                   }}
                   onClose={() => setActiveTab(null)}
+                  onSpotClick={(spot) => {
+                    // 챗봇 결과 클릭 시 상세보기로 이동
+                    setActiveTab(null);
+                    onViewSpotDetails(spot);
+                  }}
                 />
               )}
               {activeTab === 'my-places' && (
@@ -549,7 +554,7 @@ function SpotDetailContent({
   }
 
   return (
-    <div className="px-5 pb-6 pt-2">
+    <div className="px-5 pb-6 pt-2 md:pt-5">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900 leading-tight">
