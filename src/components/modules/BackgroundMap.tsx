@@ -99,6 +99,7 @@ export default function BackgroundMap({
 
   const onMapInteractionRef = useRef(onMapInteraction);
   const onMarkerClickRef = useRef(onMarkerClick);
+  const prevSpotIndexRef = useRef<number | null>(null);
 
   const mainColor = markerTheme === 'green' ? '#10B981' : '#FFA500';
 
@@ -321,9 +322,10 @@ export default function BackgroundMap({
   useEffect(() => {
     if (!mapInstance.current || !window.Tmapv2 || spots.length === 0) return;
 
-    spotMarkersRef.current.forEach((marker, idx) => {
-      const spot = spots[idx];
-      const isActive = idx === currentSpotIndex;
+    const updateMarker = (index: number, isActive: boolean) => {
+      const marker = spotMarkersRef.current[index];
+      const spot = spots[index];
+      if (!marker || !spot) return;
 
       // Re-evaluate isOnAir for active state update
       const isFestival =
@@ -392,7 +394,21 @@ export default function BackgroundMap({
       } else if (!isActive && typeof marker.setZIndex === 'function') {
         marker.setZIndex(20);
       }
-    });
+    };
+
+    // 1. Deactivate previous
+    if (
+      prevSpotIndexRef.current !== null &&
+      prevSpotIndexRef.current !== currentSpotIndex
+    ) {
+      updateMarker(prevSpotIndexRef.current, false);
+    }
+
+    // 2. Activate current
+    updateMarker(currentSpotIndex, true);
+
+    // 3. Update ref
+    prevSpotIndexRef.current = currentSpotIndex;
   }, [currentSpotIndex, isMapMode, spots, markerTheme]);
 
   // 1. GPS Location Marker (Neon)
